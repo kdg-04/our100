@@ -30,6 +30,14 @@
     // 엔딩 문구
     endingMessage: "앞으로도 잘 부탁해 ❤️",
 
+    // 편지 잠금 — 이 날짜 0시 이전에는 편지가 열리지 않고 카운트다운만 표시
+    //  · enabled: false 로 두면 잠금 해제(언제나 열림)
+    //  · date: 100일 당일 (연애 시작일 2026-03-15 기준 D+100 = 2026-06-22)
+    letterUnlock: {
+      enabled: true,
+      date: "2026-06-22",
+    },
+
     /* ---------- 퀴즈 9문제 ----------
        correct   : 정답 보기 인덱스(0~3). "all"이면 모든 보기 정답 처리
        correctMsg: 정답 멘트
@@ -242,6 +250,9 @@
       case "quiz":
         Quiz.start();
         break;
+      case "unlock":
+        setupLetterLock(); // 100일 전이면 잠금/카운트다운 표시
+        break;
       case "puzzle":
         // 완성 사진을 한 조각씩 순차 공개
         Puzzle.revealAll(refs.fullBoard);
@@ -290,6 +301,7 @@
     // 봉투
     envelope: document.getElementById("envelope"),
     unlockHint: document.getElementById("unlock-hint"),
+    unlockSub: document.getElementById("unlock-sub"),
   };
 
   /* =====================================================================
@@ -346,6 +358,14 @@
   let envelopeOpened = false;
   refs.envelope.addEventListener("click", () => {
     if (envelopeOpened) return;
+    // 100일 전이면 아직 열 수 없음 → 살짝 흔들고 카운트다운 안내
+    if (isLetterLocked()) {
+      refs.envelope.classList.remove("shake-no");
+      void refs.envelope.offsetWidth; // 애니메이션 재시작용 reflow
+      refs.envelope.classList.add("shake-no");
+      refs.unlockHint.textContent = `아직이야! 100일에 만나요 💌  (D-day까지 ${remainingText()})`;
+      return;
+    }
     envelopeOpened = true;
     refs.envelope.classList.add("is-open");
     refs.unlockHint.textContent = "편지가 도착했어요 💌";
@@ -534,7 +554,58 @@
   }
 
   /* =====================================================================
-     ❿ 초기 실행
+     ❿ 편지 잠금 (100일 전에는 열리지 않음)
+     ===================================================================== */
+  let lockTimer = null;
+
+  /** 편지 열림 기준 시각(해당 날짜 0시) */
+  function getUnlockTime() {
+    return new Date(APP_DATA.letterUnlock.date + "T00:00:00");
+  }
+
+  /** 지금이 편지 열림 시각 이전인지 (= 잠겨있는지) */
+  function isLetterLocked() {
+    const cfg = APP_DATA.letterUnlock;
+    if (!cfg || !cfg.enabled) return false;
+    return new Date() < getUnlockTime();
+  }
+
+  /** 열림까지 남은 시간을 "N일 N시간 N분 N초"로 */
+  function remainingText() {
+    let diff = getUnlockTime() - new Date();
+    if (diff <= 0) return "곧 열려요";
+    const d = Math.floor(diff / 86400000); diff %= 86400000;
+    const h = Math.floor(diff / 3600000); diff %= 3600000;
+    const m = Math.floor(diff / 60000); diff %= 60000;
+    const s = Math.floor(diff / 1000);
+    return `${d}일 ${h}시간 ${m}분 ${s}초`;
+  }
+
+  /** 봉투 화면 진입 시 잠금 상태에 맞춰 안내/카운트다운 구성 */
+  function setupLetterLock() {
+    if (lockTimer) { clearInterval(lockTimer); lockTimer = null; }
+
+    // 잠금 해제 상태(100일 당일 이후) → 기본 안내
+    if (!isLetterLocked()) {
+      refs.envelope.classList.remove("is-locked");
+      refs.unlockSub.textContent = "봉투를 눌러서 열어보세요";
+      refs.unlockHint.textContent = "봉투를 톡 — 눌러주세요";
+      return;
+    }
+
+    // 잠금 상태 → 카운트다운 표시 (1초마다 갱신, 시간이 되면 자동 해제)
+    refs.envelope.classList.add("is-locked");
+    refs.unlockSub.textContent = "💌 100일이 되는 날, 편지가 열려요";
+    const tick = () => {
+      if (!isLetterLocked()) { setupLetterLock(); return; }
+      refs.unlockHint.textContent = `열리기까지  ${remainingText()}`;
+    };
+    tick();
+    lockTimer = setInterval(tick, 1000);
+  }
+
+  /* =====================================================================
+     ⓫ 초기 실행
      ===================================================================== */
   buildTimeline();
   updateCounter();

@@ -782,6 +782,22 @@ img {
   z-index: 6;
 }
 
+/* 잠금 상태: 봉투에 자물쇠 배지 */
+.envelope.is-locked::after {
+  content: "🔒";
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 1.1rem;
+  z-index: 7;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+/* 아직 못 여는 봉투를 눌렀을 때: 좌우로 살짝 흔들림 (기존 shake 키프레임 재사용) */
+.envelope.shake-no {
+  animation: shake 0.45s ease;
+}
+
 .unlock-hint {
   margin-top: 28px;
   color: var(--text-soft);
