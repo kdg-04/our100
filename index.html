@@ -34,9 +34,11 @@
     <div class="hero-inner reveal">
       <p class="hero-eyebrow">❤️ 우리의 100일 ❤️</p>
       <h1 class="hero-title">다연님을 위한<br />작은 이벤트가<br />준비되어 있습니다.</h1>
-      <p class="hero-sub">함께 만든 추억을 하나씩 열어볼까요?</p>
+      <p class="hero-sub" id="hero-sub">함께 만든 추억을 하나씩 열어볼까요?</p>
       <button class="btn btn-primary" id="start-btn" type="button">시작하기</button>
-      <p class="hero-hint">화면을 가볍게 터치하며 진행해 주세요 ✨</p>
+      <!-- 100일 전: 시작 버튼 대신 카운트다운 표시 (main.js가 제어) -->
+      <p class="hero-countdown" id="hero-countdown" style="display: none"></p>
+      <p class="hero-hint" id="hero-hint">화면을 가볍게 터치하며 진행해 주세요 ✨</p>
     </div>
   </section>
 

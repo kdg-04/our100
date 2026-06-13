@@ -302,6 +302,11 @@
     envelope: document.getElementById("envelope"),
     unlockHint: document.getElementById("unlock-hint"),
     unlockSub: document.getElementById("unlock-sub"),
+    // 시작 화면 잠금 요소
+    startBtn: document.getElementById("start-btn"),
+    heroSub: document.getElementById("hero-sub"),
+    heroHint: document.getElementById("hero-hint"),
+    heroCountdown: document.getElementById("hero-countdown"),
   };
 
   /* =====================================================================
@@ -581,6 +586,34 @@
     return `${d}일 ${h}시간 ${m}분 ${s}초`;
   }
 
+  let startLockTimer = null;
+
+  /** 시작 화면 잠금 — 100일 전에는 시작 버튼 대신 카운트다운 표시 */
+  function setupStartLock() {
+    if (startLockTimer) { clearInterval(startLockTimer); startLockTimer = null; }
+
+    // 잠금 해제 상태(100일 당일 이후) → 정상 시작 화면
+    if (!isLetterLocked()) {
+      refs.startBtn.style.display = "";
+      refs.heroCountdown.style.display = "none";
+      refs.heroSub.textContent = "함께 만든 추억을 하나씩 열어볼까요?";
+      refs.heroHint.style.display = "";
+      return;
+    }
+
+    // 잠금 상태 → 시작 버튼 숨기고 카운트다운 표시 (1초마다 갱신)
+    refs.startBtn.style.display = "none";
+    refs.heroHint.style.display = "none";
+    refs.heroSub.textContent = "💌 100일이 되는 날 공개됩니다";
+    refs.heroCountdown.style.display = "";
+    const tick = () => {
+      if (!isLetterLocked()) { setupStartLock(); return; } // 시간이 되면 자동 해제
+      refs.heroCountdown.textContent = `열리기까지  ${remainingText()}`;
+    };
+    tick();
+    startLockTimer = setInterval(tick, 1000);
+  }
+
   /** 봉투 화면 진입 시 잠금 상태에 맞춰 안내/카운트다운 구성 */
   function setupLetterLock() {
     if (lockTimer) { clearInterval(lockTimer); lockTimer = null; }
@@ -609,6 +642,7 @@
      ===================================================================== */
   buildTimeline();
   updateCounter();
+  setupStartLock(); // 시작 화면 잠금/카운트다운 구성 (100일 전이면 시작 버튼 숨김)
   // 자정을 넘겨도 카운터가 갱신되도록 1분마다 점검
   setInterval(() => {
     updateCounter();
