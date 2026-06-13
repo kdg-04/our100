@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <!-- 모바일 우선: 뷰포트 고정, 사용자 확대 허용 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#FBF6EC" />
+  <meta name="description" content="우리의 100일을 기념하는 작은 이벤트" />
+  <!-- 개인 사진·편지가 검색엔진(구글 등)에 노출되지 않도록 차단 -->
+  <meta name="robots" content="noindex, nofollow" />
+  <title>❤️ 우리의 100일 ❤️</title>
+
+  <!-- 감성적인 한글 폰트 (Google Fonts). 오프라인이어도 시스템 폰트로 자연스럽게 대체됨 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Nanum+Myeongjo:wght@400;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- 전체 배경 위에 떠다니는 파티클(하트/별)이 그려지는 레이어 -->
+  <div id="particles" class="particles" aria-hidden="true"></div>
+
+  <!-- =========================================================
+       1) 시작 화면 (HERO)
+  ========================================================== -->
+  <section id="hero" class="screen is-active" data-screen="hero">
+    <!-- 별빛 배경용 캔버스 -->
+    <canvas id="hero-stars" class="stars-canvas" aria-hidden="true"></canvas>
+
+    <div class="hero-inner reveal">
+      <p class="hero-eyebrow">❤️ 우리의 100일 ❤️</p>
+      <h1 class="hero-title">다연님을 위한<br />작은 이벤트가<br />준비되어 있습니다.</h1>
+      <p class="hero-sub">함께 만든 추억을 하나씩 열어볼까요?</p>
+      <button class="btn btn-primary" id="start-btn" type="button">시작하기</button>
+      <p class="hero-hint">화면을 가볍게 터치하며 진행해 주세요 ✨</p>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       2) 추억 퀴즈 + 퍼즐 진행
+  ========================================================== -->
+  <section id="quiz" class="screen" data-screen="quiz">
+    <div class="container">
+      <header class="quiz-header">
+        <div class="quiz-progress">
+          <div class="quiz-progress-bar" id="quiz-progress-bar"></div>
+        </div>
+        <div class="quiz-meta">
+          <span class="quiz-count" id="quiz-count">Q1 / 9</span>
+          <span class="quiz-pieces" id="quiz-pieces">🧩 0 / 9</span>
+        </div>
+      </header>
+
+      <!-- 문제/보기/피드백이 렌더링되는 영역 (quiz.js) -->
+      <div class="quiz-stage" id="quiz-stage"></div>
+
+      <!-- 획득한 퍼즐 조각을 미리 보여주는 미니 보드 (puzzle.js) -->
+      <div class="quiz-puzzle">
+        <p class="quiz-puzzle-label">추억 조각</p>
+        <div class="puzzle-board puzzle-board--mini" id="puzzle-board-mini" aria-label="추억 퍼즐 조각"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       3) 퍼즐 완성 / 사진 공개
+  ========================================================== -->
+  <section id="puzzle" class="screen" data-screen="puzzle">
+    <div class="container container--center">
+      <h2 class="section-title" id="puzzle-title">✨ 모든 추억이 완성되었습니다 ✨</h2>
+      <p class="section-sub">100일 동안 함께 만든 소중한 기억들이에요.</p>
+
+      <!-- 완성된 3x3 퍼즐 (final.jpg) -->
+      <div class="puzzle-board puzzle-board--full" id="puzzle-board-full" aria-label="완성된 추억 사진"></div>
+
+      <button class="btn btn-primary" id="to-unlock-btn" type="button">💌 마지막 선물 보기</button>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       4) 편지 해금 (봉투 → 오픈)
+  ========================================================== -->
+  <section id="unlock" class="screen" data-screen="unlock">
+    <canvas id="unlock-stars" class="stars-canvas" aria-hidden="true"></canvas>
+    <div class="container container--center">
+      <h2 class="section-title">작은 편지를 준비했어요</h2>
+      <p class="section-sub">봉투를 눌러서 열어보세요</p>
+
+      <!-- 봉투: 클릭 시 .is-open 클래스로 오픈 애니메이션 -->
+      <button class="envelope" id="envelope" type="button" aria-label="편지 봉투 열기">
+        <div class="envelope-back"></div>
+        <div class="envelope-letter"><span>❤️</span></div>
+        <div class="envelope-front"></div>
+        <div class="envelope-flap"></div>
+        <div class="envelope-heart">❤</div>
+      </button>
+
+      <p class="unlock-hint" id="unlock-hint">봉투를 톡 — 눌러주세요</p>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       5) 인터랙티브 러브레터
+  ========================================================== -->
+  <section id="letter" class="screen" data-screen="letter">
+    <div class="container letter-container">
+      <article class="letter-paper" id="letter-paper">
+        <!-- 편지 내용은 letter.js가 데이터 기반으로 렌더링 -->
+      </article>
+      <div class="letter-actions">
+        <button class="btn btn-primary" id="to-timeline-btn" type="button">다가올 우리의 날들 보기 →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       6) 미래 타임라인
+  ========================================================== -->
+  <section id="timeline" class="screen" data-screen="timeline">
+    <div class="container container--center">
+      <h2 class="section-title">우리가 함께 걸어갈 길 🌟</h2>
+      <p class="section-sub">하나씩, 천천히, 그리고 오래오래</p>
+
+      <ul class="timeline" id="timeline-list"></ul>
+
+      <button class="btn btn-primary" id="to-ending-btn" type="button">마지막으로 →</button>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       7) 엔딩 화면
+  ========================================================== -->
+  <section id="ending" class="screen" data-screen="ending">
+    <canvas id="ending-stars" class="stars-canvas" aria-hidden="true"></canvas>
+    <div class="container container--center ending-inner">
+      <div class="ending-counter">
+        <span class="ending-counter-label">우리가 함께한 시간</span>
+        <span class="ending-counter-value" id="dday-value">D+0</span>
+        <span class="ending-counter-date" id="dday-date"></span>
+      </div>
+      <h2 class="ending-message" id="ending-message">앞으로도 잘 부탁해 ❤️</h2>
+      <button class="btn btn-ghost" id="replay-btn" type="button">처음부터 다시 보기 ↺</button>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       추억 모달 (러브레터에서 호출)
+  ========================================================== -->
+  <div class="modal-overlay" id="memory-modal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" id="memory-modal-close" type="button" aria-label="닫기">✕</button>
+      <h3 class="modal-title" id="memory-modal-title"></h3>
+      <div class="modal-gallery" id="memory-modal-gallery"></div>
+      <p class="modal-desc" id="memory-modal-desc"></p>
+    </div>
+  </div>
+
+  <!-- 스크립트: 모듈(quiz/puzzle/letter)을 먼저 정의하고, main.js가 마지막에 전체를 조립 -->
+  <script src="js/puzzle.js"></script>
+  <script src="js/quiz.js"></script>
+  <script src="js/letter.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

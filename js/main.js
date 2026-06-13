@@ -1,0 +1,543 @@
+/* =====================================================================
+   main.js — 전체 흐름 조립 + 데이터 정의
+   ---------------------------------------------------------------------
+   ▶ 커스터마이징은 대부분 아래 APP_DATA 한 곳만 수정하면 됩니다.
+     - startDate   : 연애 시작일 (YYYY-MM-DD)
+     - finalImage  : 퍼즐 완성 사진 경로
+     - imageBase   : 추억 사진 폴더 경로
+     - quiz        : 퀴즈 9문제
+     - memories    : 추억 모달 데이터
+     - letter      : 러브레터 인사말/본문/서명
+     - timeline    : 미래 타임라인 목표
+     - endingMessage : 엔딩 문구
+   ===================================================================== */
+(function () {
+  "use strict";
+
+  /* =====================================================================
+     ❶ 사용자 데이터 (여기만 바꾸면 다른 커플도 그대로 재사용 가능)
+     ===================================================================== */
+  const APP_DATA = {
+    // 연애 시작일 — 실시간 D-day 계산 기준
+    startDate: "2026-03-15",
+
+    // 퍼즐 완성 사진 (3x3로 잘려 한 조각씩 공개됨)
+    finalImage: "images/puzzle/final.jpg",
+
+    // 추억 사진이 들어있는 폴더
+    imageBase: "images/memories/",
+
+    // 엔딩 문구
+    endingMessage: "앞으로도 잘 부탁해 ❤️",
+
+    /* ---------- 퀴즈 9문제 ----------
+       correct   : 정답 보기 인덱스(0~3). "all"이면 모든 보기 정답 처리
+       correctMsg: 정답 멘트
+       wrongMsg  : 기본 오답 멘트 ({선택} 자리에 고른 보기 텍스트가 들어감)
+       optionMsgs: 특정 보기에만 보여줄 전용 멘트 { 인덱스: "멘트" } (정답/오답 멘트보다 우선) */
+    quiz: [
+      {
+        question: "Q1. 우리가 처음 같이 본 영화는?",
+        options: ["백룸", "왕과 사는 남자", "휴민트", "군체"],
+        correct: 2,
+        correctMsg: "정답! 🎬 우리의 첫 영화 데이트 시작!",
+        wrongMsg: "아쉽지만 정답은 휴민트! 그래도 같이 본 건 맞으니까 통과 ❤️",
+        optionMsgs: {
+          3: "언놈이랑 이런 영화를 본거야..? ㅡ3ㅡ",
+        },
+      },
+      {
+        question: "Q2. 우리가 처음 만나기로 한 날은?",
+        options: ["2026년 1월 25일", "2026년 1월 31일", "2026년 2월 13일", "2026년 2월 19일"],
+        correct: 3,
+        correctMsg: "정답! 📅 그날을 아직도 기억해 ❤️",
+        wrongMsg: "정답은 2026년 2월 19일! 그날 진짜 떨렸는데 ㅎㅎ",
+      },
+      {
+        question: "Q3. 우리 처음 연락을 시작한 날은?",
+        options: ["2026년 1월 25일", "2026년 2월 7일", "2026년 1월 21일", "2026년 2월 19일"],
+        correct: 0,
+        correctMsg: "정답! 💬 첫 연락부터 다 기억하고 있네 ❤️",
+        wrongMsg: "정답은 2026년 1월 25일! 그때부터 시작이었지 ㅎㅎ",
+      },
+      {
+        question: "Q4. 처음 인생네컷 찍은 장소는?",
+        options: ["진해루", "로망스 다리", "중원로타리", "경화역"],
+        correct: 1,
+        correctMsg: "정답! 📸 로망스 다리에서 찍은 첫 네컷 ❤️",
+        wrongMsg: "정답은 로망스 다리! 사진 다시 보러 가야겠다 ㅎㅎ",
+      },
+      {
+        question: "Q5. 처음 키스한 장소와 입에 물고 있던 것은?",
+        options: [
+          "진주집 앞 / 호올스",
+          "롯데몰 뒷쪽 / 이클립스",
+          "문산 코아루 아파트 101동 앞 / 폴로",
+          "진주집 앞 / 이클립스",
+        ],
+        correct: 3,
+        correctMsg: "정답! 💋 그 순간 아직도 생생해 ❤️",
+        wrongMsg: "정답은 진주집 앞 / 이클립스! 「{선택}」… 언놈이야..? 😡",
+      },
+      {
+        question: "Q6. 내가 좋아하는 음식은?",
+        options: ["육회", "치킨", "연어", "고기"],
+        correct: "all", // 모두 정답
+        correctMsg: "정답! 사실 다 좋아함 🤤 이 문제는 함정이었습니다 😎",
+        wrongMsg: "정답! 사실 다 좋아함 🤤",
+      },
+      {
+        question: "Q7. 내가 가장 귀여울 때는?",
+        options: ["웃을 때", "밥 먹을 때", "울 때", "항상"],
+        correct: 3,
+        correctMsg: "정답 ❤️ 역시 잘 알고 있네.",
+        wrongMsg: "그렇게 생각하구 있었구나? 몰랐네 😏",
+      },
+      {
+        question: "Q8. 누가 더 사랑할까?",
+        options: ["대경", "다연", "대경 51 : 다연 49", "대경 49 : 다연 51"],
+        correct: 0,
+        correctMsg: "정답 ❤️ 내가 훨씬 더 많이 사랑해.",
+        wrongMsg: "정답은 대경! 내가 더 많이 사랑한다구 ❤️",
+        optionMsgs: {
+          1: "역시.. 나밖에 모르는 바부..❤️‍🔥",
+          2: "51:49는 너무 근소하잖아! 압도적이어야지 ❤️",
+          3: "이정도만 저를 사랑하셨던건가요? 🥲",
+        },
+      },
+      {
+        question: "Q9. 우리의 다음 목표는?",
+        options: ["200일", "300일", "500일", "결혼"],
+        correct: 3,
+        correctMsg: "정답 ❤️ 앞으로도 오래오래 함께하자.",
+        wrongMsg: "그 뒤에는 없는 거야? 🥹",
+        optionMsgs: {
+          0: "그 뒤에는 없는 거야? 🥹",
+          1: "그 뒤에는 없는 거야? 🥹",
+          2: "그 뒤에는 없는 거야? 🥹",
+        },
+      },
+    ],
+
+    /* ---------- 추억 모달 (러브레터 중간에서 호출) ---------- */
+    memories: {
+      1: {
+        title: "❤️ 우리의 시작",
+        photos: ["2.jpeg", "5.JPG"],
+        desc: "처음에는 어색했지만 어느 순간부터 함께 있는 게 너무 자연스러워지고 편안해졌어",
+      },
+      2: {
+        title: "🌸 봄날의 추억",
+        photos: ["4.JPG", "3.JPG", "6.jpeg"],
+        desc: "바다도 예쁘고 벚꽃도 예뻤지만 지금 생각하면 공주가 훨씬 더 예뻐 ㅎㅎ",
+      },
+      3: {
+        title: "🫶 우리의 일상",
+        photos: ["1.jpg", "7.JPG", "8.JPG"],
+        desc: "특별한 날보다 공주와 함께한 평범한 일상이 더 소중한 추억으로 남아있어",
+      },
+      4: {
+        title: "🐱 우리만의 시간",
+        photos: ["9.JPG", "10.JPG"],
+        desc: "공주의 친구도 소개시켜주고, 놀이터에서 앉아서 이야기하며 고양이와 함께한 날들도 너무 행복했어",
+      },
+      5: {
+        title: "🌊 앞으로도 함께",
+        photos: ["11.JPG", "12.JPG"],
+        desc: "앞으로도 지금처럼 같이 웃고, 같이 추억을 쌓고, 사진도 많이 남기면서 우리만의 이야기를 계속 만들어가자",
+      },
+    },
+
+    /* ---------- 러브레터 ----------
+       blocks 배열 순서대로 화면에 나타납니다.
+       { type: "text", text: "..." }  → 일반 단락 (줄바꿈은 \n)
+       { type: "memory", id: 1 }       → 그 자리에 "추억 보기" 버튼 삽입 */
+    letter: {
+      greeting: "Dear. 공주님",
+      sign: "From. 대경",
+      blocks: [
+        { type: "text", text: "어느덧 우리가 함께한 시간이 벌써 100일이나 되었네. 사귀자고 했던 게 엊그제 같은데 종강도 하고, 이렇게 100일 기념으로 같이 경주까지 오게 되니까 괜히 신기하기도 하고 너무 행복해." },
+        { type: "text", text: "선물은 서로 안 해주기로 했으니까 따로 준비하지는 않았지만, 대신 이렇게 서프라이즈 이벤트를 준비해봤어. 어때? 놀랐어? 준비하는지도 몰랐지? 마음에 들었으면 좋겠다." },
+        { type: "text", text: "다연이와 함께한 지난 100일은 정말 소중하고 행복한 시간이었어." },
+        { type: "text", text: "같이 PC방 가서 오버워치도 하고,\n군항제 놀러 가기 전에 마트에서 장도 보고," },
+        { type: "memory", id: 1 },
+        { type: "text", text: "진해루에서 산책도 하고,\n로망스 다리에서 다연이처럼 예쁜 벚꽃도 구경하고," },
+        { type: "memory", id: 2 },
+        { type: "text", text: "찜질방에 가서 클레이로 마루도 만들고,\n창원 실습 때는 가로수길 가서 데이트도 하고," },
+        { type: "memory", id: 3 },
+        { type: "text", text: "공주 친구랑 같이 술도 마셔보고,\n공주네 아파트 길냥이랑 놀이터에서 같이 놀기도 하고," },
+        { type: "memory", id: 4 },
+        { type: "text", text: "사천에 바다 보러 가기도 하고,\n우리의 첫 커플티도 맞췄지." },
+        { type: "memory", id: 5 },
+        { type: "text", text: "돌이켜보면 특별한 날들만 기억에 남는 게 아니라 함께했던 모든 날들이 하나하나 소중한 추억으로 남은 것 같아." },
+        { type: "text", text: "어디에서 뭘 했는지보다 그 순간을 다연이와 함께했다는 사실이 더 좋았고, 그래서 같은 장소를 다시 가게 되더라도 다른 기억보다 다연이와 함께했던 순간들이 가장 먼저 떠오를 것 같아." },
+        { type: "text", text: "100일 동안 만나면서 우리 공주한테 고마웠던 것도 정말 많아." },
+        { type: "text", text: "누구보다 먼저 내 편이 되어주고,\n좋은 일이 있으면 마치 본인 일처럼 기뻐해 주고,\n항상 나를 챙겨주려고 하고,\n짜증을 냈을 때는 먼저 미안하다고 이야기해 주고,\n서운하거나 화가 난 일이 있으면 솔직하게 마음을 말해주고,\n매일 고맙다, 사랑한다는 표현도 아낌없이 해주고,\n힘든 일이 있을 때는 지금 어떤 감정인지 먼저 이야기해 주고,\n경대에서 우리 학교까지 먼데도 데려다주려 하고," },
+        { type: "text", text: "그런 모습들을 보면서 나는 우리 공주를 더 많이 사랑하게 된 것 같아." },
+        { type: "text", text: "그리고 나도 공주에게 더 좋은 남자친구가 되고 싶다는 생각을 많이 하게 됐어." },
+        { type: "text", text: "사실 연애를 하다 보면 좋은 일만 있는 건 아니잖아." },
+        { type: "text", text: "서운한 일도 있을 수 있고,\n의견이 다를 때도 있고,\n가끔은 서로 힘들 때도 있을 거야." },
+        { type: "text", text: "그런데 나는 공주랑 만나면서 그런 순간들조차도 충분히 함께 이겨낼 수 있겠다는 생각을 정말 많이 했어." },
+        { type: "text", text: "공주는 힘든 일이 있으면 숨기기보다는 솔직하게 이야기해 주려고 하고,\n서운한 게 생겨도 혼자 참고 넘기기보다는 나랑 같이 해결하려고 해주잖아." },
+        { type: "text", text: "그래서 우리 관계가 더 소중하게 느껴지고,\n앞으로도 오래 함께하고 싶다는 생각이 들어." },
+        { type: "text", text: "연애도 오래 하고,\n언젠가는 결혼도 하고 싶고." },
+        { type: "text", text: "있잖아, 나는" },
+        { type: "text", text: "공주가 짜증 내는 모습도 좋고,\n귀엽게 장난치는 모습도 좋고,\n투정부리는 모습도 좋고,\n맛있는 거 먹으면서 행복해하는 모습도 좋고,\n나를 바라보면서 웃어주는 모습도 좋아." },
+        { type: "text", text: "그냥 다연이라서 좋아." },
+        { type: "text", text: "그래서 같이 있으면 나도 모르게 웃게 되고,\n평범한 하루도 더 즐겁고 행복하게 느껴지는 것 같아." },
+        { type: "text", text: "우리 사진도 많이 찍고,\n여기저기 많이 함께 다니면서 앞으로의 추억들도 예쁘게 쌓아가자." },
+        { type: "text", text: "앞으로 어떤 일이 생기더라도 지금처럼 서로 이야기 많이 하고,\n서로를 믿어주고,\n서로에게 의지하고,\n서로의 편이 되어주면서 오래오래 함께했으면 좋겠어." },
+        { type: "text", text: "100일 동안 함께해줘서 정말 행복했고 고마워." },
+        { type: "text", text: "그리고 언제나 나를 사랑해줘서 고마워." },
+        { type: "text", text: "사실 100일이 특별한 이유는 100일이라는 숫자 때문이 아니라,\n그 100일을 공주와 함께 보냈기 때문인 것 같아." },
+        { type: "text", text: "앞으로도 잘 부탁해." },
+        { type: "text", text: "우리 다연이는 나에게 가장 소중한 사람이야." },
+        { type: "text", text: "100일 진심으로 축하하고,\n앞으로 지금보다 더 많이 사랑할게." },
+        { type: "text", text: "그리고 앞으로의 모든 날들도\n계속 공주와 함께하고 싶어." },
+        { type: "text", text: "사랑해, 다연아" },
+      ],
+    },
+
+    /* ---------- 미래 타임라인 ----------
+       days: 해당 일수 (D-day 기준 도달 여부 자동 판정)
+       goal: true 면 '목표'(하트) 스타일로 항상 설렘 상태 표시 */
+    timeline: [
+      { label: "100일", emoji: "💛", days: 100 },
+      { label: "200일", emoji: "💗", days: 200 },
+      { label: "300일", emoji: "💖", days: 300 },
+      { label: "500일", emoji: "💝", days: 500 },
+      { label: "1000일", emoji: "💞", days: 1000 },
+      { label: "결혼", emoji: "💍", goal: true },
+    ],
+  };
+
+  // 다른 모듈에서도 참조할 수 있게 노출
+  window.APP_DATA = APP_DATA;
+
+  /* =====================================================================
+     ❷ 화면(스크린) 전환
+     ===================================================================== */
+  const screens = {};
+  document.querySelectorAll(".screen").forEach((el) => {
+    screens[el.dataset.screen] = el;
+  });
+
+  let currentScreen = "hero";
+
+  /** 지정한 화면으로 전환 + 화면별 진입 동작 실행 */
+  function goTo(name) {
+    if (!screens[name]) return;
+    Object.values(screens).forEach((el) => el.classList.remove("is-active"));
+    screens[name].classList.add("is-active");
+    currentScreen = name;
+    window.scrollTo({ top: 0, behavior: "auto" });
+    onEnter(name);
+  }
+
+  /** 화면 진입 훅 */
+  function onEnter(name) {
+    switch (name) {
+      case "quiz":
+        Quiz.start();
+        break;
+      case "puzzle":
+        // 완성 사진을 한 조각씩 순차 공개
+        Puzzle.revealAll(refs.fullBoard);
+        break;
+      case "letter":
+        Letter.reveal();
+        break;
+      case "timeline":
+        animateTimeline();
+        break;
+      case "ending":
+        startStars(refs.endingStars, { dark: true });
+        burstHearts(28); // 축하 하트 폭죽
+        break;
+    }
+  }
+
+  /* =====================================================================
+     ❸ DOM 참조 모으기
+     ===================================================================== */
+  const refs = {
+    // 퀴즈
+    stage: document.getElementById("quiz-stage"),
+    count: document.getElementById("quiz-count"),
+    pieces: document.getElementById("quiz-pieces"),
+    progressBar: document.getElementById("quiz-progress-bar"),
+    // 퍼즐
+    miniBoard: document.getElementById("puzzle-board-mini"),
+    fullBoard: document.getElementById("puzzle-board-full"),
+    // 편지/모달
+    paper: document.getElementById("letter-paper"),
+    modal: document.getElementById("memory-modal"),
+    modalClose: document.getElementById("memory-modal-close"),
+    modalTitle: document.getElementById("memory-modal-title"),
+    modalGallery: document.getElementById("memory-modal-gallery"),
+    modalDesc: document.getElementById("memory-modal-desc"),
+    // 타임라인 / 엔딩
+    timelineList: document.getElementById("timeline-list"),
+    ddayValue: document.getElementById("dday-value"),
+    ddayDate: document.getElementById("dday-date"),
+    endingMessage: document.getElementById("ending-message"),
+    // 캔버스
+    heroStars: document.getElementById("hero-stars"),
+    unlockStars: document.getElementById("unlock-stars"),
+    endingStars: document.getElementById("ending-stars"),
+    // 봉투
+    envelope: document.getElementById("envelope"),
+    unlockHint: document.getElementById("unlock-hint"),
+  };
+
+  /* =====================================================================
+     ❹ 모듈 초기화
+     ===================================================================== */
+  Puzzle.init({
+    miniBoard: refs.miniBoard,
+    fullBoard: refs.fullBoard,
+    finalSrc: APP_DATA.finalImage,
+  });
+
+  Quiz.init({
+    data: APP_DATA.quiz,
+    puzzle: Puzzle,
+    refs: {
+      stage: refs.stage,
+      count: refs.count,
+      pieces: refs.pieces,
+      progressBar: refs.progressBar,
+    },
+    onComplete: () => goTo("puzzle"),
+  });
+
+  Letter.init({
+    config: {
+      greeting: APP_DATA.letter.greeting,
+      blocks: APP_DATA.letter.blocks,
+      sign: APP_DATA.letter.sign,
+      memories: APP_DATA.memories,
+      imageBase: APP_DATA.imageBase,
+    },
+    refs: {
+      paper: refs.paper,
+      modal: refs.modal,
+      modalClose: refs.modalClose,
+      modalTitle: refs.modalTitle,
+      modalGallery: refs.modalGallery,
+      modalDesc: refs.modalDesc,
+    },
+  });
+
+  refs.endingMessage.textContent = APP_DATA.endingMessage;
+
+  /* =====================================================================
+     ❺ 버튼/봉투 이벤트
+     ===================================================================== */
+  document.getElementById("start-btn").addEventListener("click", () => goTo("quiz"));
+  document.getElementById("to-unlock-btn").addEventListener("click", () => goTo("unlock"));
+  document.getElementById("to-timeline-btn").addEventListener("click", () => goTo("timeline"));
+  document.getElementById("to-ending-btn").addEventListener("click", () => goTo("ending"));
+  document.getElementById("replay-btn").addEventListener("click", () => location.reload());
+
+  // 봉투: 클릭하면 열림 → 잠시 뒤 편지 화면으로
+  let envelopeOpened = false;
+  refs.envelope.addEventListener("click", () => {
+    if (envelopeOpened) return;
+    envelopeOpened = true;
+    refs.envelope.classList.add("is-open");
+    refs.unlockHint.textContent = "편지가 도착했어요 💌";
+    setTimeout(() => goTo("letter"), 1500);
+  });
+
+  /* =====================================================================
+     ❻ 떠다니는 파티클 (하트/별)
+     ===================================================================== */
+  const PARTICLE_CHARS = ["❤", "🤍", "✨", "💛", "🌟"];
+  const particleLayer = document.getElementById("particles");
+
+  /** 파티클 1개 생성 */
+  function spawnParticle() {
+    if (document.hidden) return;
+    const el = document.createElement("span");
+    el.className = "particle";
+    el.textContent = PARTICLE_CHARS[Math.floor(Math.random() * PARTICLE_CHARS.length)];
+
+    const size = 12 + Math.random() * 20;
+    const duration = 7 + Math.random() * 7;
+    const drift = (Math.random() - 0.5) * 160;
+
+    el.style.left = Math.random() * 100 + "vw";
+    el.style.fontSize = size + "px";
+    el.style.animationDuration = duration + "s";
+    el.style.setProperty("--p-drift", drift + "px");
+    el.style.setProperty("--p-opacity", (0.4 + Math.random() * 0.5).toFixed(2));
+
+    particleLayer.appendChild(el);
+    setTimeout(() => el.remove(), duration * 1000 + 200);
+  }
+
+  // 일정 간격으로 은은하게 생성
+  setInterval(spawnParticle, 900);
+  for (let i = 0; i < 6; i++) setTimeout(spawnParticle, i * 400); // 초기 몇 개 미리
+
+  /** 엔딩에서 하트를 한꺼번에 터뜨림 */
+  function burstHearts(n) {
+    for (let i = 0; i < n; i++) {
+      setTimeout(spawnParticle, i * 70);
+    }
+  }
+
+  /* =====================================================================
+     ❼ 별빛 캔버스 (반짝이는 별)
+     ===================================================================== */
+  const starAnimations = new WeakMap();
+
+  /**
+   * 캔버스에 반짝이는 별 애니메이션 시작
+   * @param {HTMLCanvasElement} canvas
+   * @param {object} [opts] { dark: boolean } - 어두운 배경이면 흰 별
+   */
+  function startStars(canvas, opts = {}) {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const dark = !!opts.dark;
+    let stars = [];
+    let raf;
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth || canvas.offsetWidth || window.innerWidth;
+      const h = canvas.clientHeight || canvas.offsetHeight || window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // 면적에 비례한 별 개수
+      const count = Math.round((w * h) / 9000);
+      stars = Array.from({ length: count }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: Math.random() * 1.6 + 0.4,
+        a: Math.random(),
+        speed: Math.random() * 0.02 + 0.005,
+      }));
+      canvas._size = { w, h };
+    }
+
+    function draw() {
+      const { w, h } = canvas._size;
+      ctx.clearRect(0, 0, w, h);
+      stars.forEach((s) => {
+        s.a += s.speed;
+        const alpha = 0.35 + Math.abs(Math.sin(s.a)) * 0.6;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = dark
+          ? `rgba(255, 245, 210, ${alpha})`
+          : `rgba(201, 162, 75, ${alpha * 0.55})`;
+        ctx.shadowBlur = dark ? 6 : 3;
+        ctx.shadowColor = dark ? "rgba(255,240,200,0.8)" : "rgba(201,162,75,0.5)";
+        ctx.fill();
+      });
+      raf = requestAnimationFrame(draw);
+    }
+
+    // 기존 애니메이션 중복 방지
+    const prev = starAnimations.get(canvas);
+    if (prev) {
+      cancelAnimationFrame(prev.raf);
+      window.removeEventListener("resize", prev.resize);
+    }
+
+    resize();
+    draw();
+    window.addEventListener("resize", resize);
+    starAnimations.set(canvas, { raf, resize });
+  }
+
+  // 시작 화면 별빛은 바로 시작 (봉투/엔딩은 진입 시 시작)
+  startStars(refs.heroStars, { dark: false });
+  // 봉투 화면도 미리 준비 (보이기 전이라 가벼움)
+  startStars(refs.unlockStars, { dark: false });
+
+  /* =====================================================================
+     ❽ 미래 타임라인
+     ===================================================================== */
+  /** 타임라인 항목을 렌더링 */
+  function buildTimeline() {
+    const dday = getDday();
+    refs.timelineList.innerHTML = "";
+
+    APP_DATA.timeline.forEach((item) => {
+      const li = document.createElement("li");
+      li.className = "timeline-item";
+
+      let statusText;
+      if (item.goal) {
+        li.classList.add("is-goal");
+        statusText = "언젠가 꼭 💍";
+      } else if (dday >= item.days) {
+        li.classList.add("is-done");
+        statusText = "함께 도착 ✔";
+      } else {
+        const remain = item.days - dday;
+        statusText = `D-${remain} 남았어요 ⏳`;
+      }
+
+      li.innerHTML =
+        `<span class="timeline-icon">${item.goal && dday < 1 ? "💍" : item.emoji}</span>` +
+        `<span class="timeline-text">` +
+        `<span class="timeline-label">${item.label}</span>` +
+        `<span class="timeline-status">${statusText}</span>` +
+        `</span>`;
+
+      refs.timelineList.appendChild(li);
+    });
+  }
+
+  /** 타임라인 항목을 순차적으로 등장시킴 */
+  function animateTimeline() {
+    const items = refs.timelineList.querySelectorAll(".timeline-item");
+    items.forEach((el, i) => {
+      el.classList.remove("in-view");
+      setTimeout(() => el.classList.add("in-view"), 220 * i + 150);
+    });
+  }
+
+  /* =====================================================================
+     ❾ 실시간 연애 카운터 (D-day)
+     ===================================================================== */
+  /** 시작일로부터 오늘까지의 일수를 D+값으로 반환 (시작일 = D+1) */
+  function getDday() {
+    const start = new Date(APP_DATA.startDate + "T00:00:00");
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diff = Math.floor((today - start) / 86400000) + 1;
+    return Math.max(diff, 1);
+  }
+
+  /** 날짜를 yyyy.MM.dd 형태로 */
+  function fmt(d) {
+    const z = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}.${z(d.getMonth() + 1)}.${z(d.getDate())}`;
+  }
+
+  /** 엔딩 카운터 텍스트 갱신 */
+  function updateCounter() {
+    const dday = getDday();
+    refs.ddayValue.textContent = `D+${dday}`;
+    const start = new Date(APP_DATA.startDate + "T00:00:00");
+    refs.ddayDate.textContent = `${fmt(start)} 부터 · 오늘 ${fmt(new Date())}`;
+  }
+
+  /* =====================================================================
+     ❿ 초기 실행
+     ===================================================================== */
+  buildTimeline();
+  updateCounter();
+  // 자정을 넘겨도 카운터가 갱신되도록 1분마다 점검
+  setInterval(() => {
+    updateCounter();
+    buildTimeline();
+  }, 60000);
+})();

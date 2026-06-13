@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# 로컬 개발/미리보기 도구 설정 (배포에 불필요)
+.claude/
+
+# 에디터
+.vscode/
+*.swp
