@@ -230,6 +230,8 @@
     Object.values(screens).forEach((el) => el.classList.remove("is-active"));
     screens[name].classList.add("is-active");
     currentScreen = name;
+    // 편지를 읽을 때는 떠다니는 이모지(파티클)가 거슬리지 않도록 숨김
+    particleLayer.style.display = name === "letter" ? "none" : "";
     window.scrollTo({ top: 0, behavior: "auto" });
     onEnter(name);
   }
@@ -359,6 +361,7 @@
   /** 파티클 1개 생성 */
   function spawnParticle() {
     if (document.hidden) return;
+    if (currentScreen === "letter") return; // 편지 화면에서는 생성 안 함
     const el = document.createElement("span");
     el.className = "particle";
     el.textContent = PARTICLE_CHARS[Math.floor(Math.random() * PARTICLE_CHARS.length)];
