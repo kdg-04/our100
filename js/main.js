@@ -90,7 +90,7 @@
         question: "Q7. 내가 가장 귀여울 때는?",
         options: ["웃을 때", "밥 먹을 때", "울 때", "항상"],
         correct: 3,
-        correctMsg: "정답 ❤️ 역시 잘 알고 있네.",
+        correctMsg: "이거로 누를 것 같았어 ❤️",
         wrongMsg: "그렇게 생각하구 있었구나? 몰랐네 😏",
       },
       {
