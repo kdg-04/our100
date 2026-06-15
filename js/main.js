@@ -30,6 +30,10 @@
     // 엔딩 문구
     endingMessage: "앞으로도 잘 부탁해 ❤️",
 
+    // 퀴즈 통과 기준 — 이 점수 미만이면 통과되지 않고 처음부터 다시 풀어야 함
+    // (예: 6 → 5개 이하 정답 시 재도전). 0이면 게이트 없음(항상 통과)
+    quizPassScore: 6,
+
     // 편지 잠금 — 이 날짜 0시 이전에는 편지가 열리지 않고 카운트다운만 표시
     //  · enabled: false 로 두면 잠금 해제(언제나 열림)
     //  · date: 100일 당일 (연애 시작일 2026-03-15 기준 D+100 = 2026-06-22)
@@ -307,6 +311,7 @@
     heroSub: document.getElementById("hero-sub"),
     heroHint: document.getElementById("hero-hint"),
     heroCountdown: document.getElementById("hero-countdown"),
+    heroAdmin: document.getElementById("hero-admin"),
   };
 
   /* =====================================================================
@@ -328,6 +333,7 @@
       progressBar: refs.progressBar,
     },
     onComplete: () => goTo("puzzle"),
+    passScore: APP_DATA.quizPassScore, // 통과 점수(미만이면 다시 풀기)
   });
 
   Letter.init({
@@ -563,6 +569,70 @@
      ===================================================================== */
   let lockTimer = null;
 
+  /* ----- 관리자 잠금 해제 (코드 7671) -----
+     해제는 '이번 방문(페이지 세션)' 동안에만 유효하다. 저장하지 않으므로
+     껐다가 다시 들어오면(새로고침/재방문) 자동으로 다시 잠긴다. */
+  const ADMIN_CODE = "7671";
+  let adminUnlocked = false; // 이번 방문에서만 유지되는 해제 플래그
+
+  // 예전 버전이 영구 저장해 둔 해제 키가 남아 있으면 제거 (다시 잠기도록)
+  try { localStorage.removeItem("admin_unlock_v1"); } catch (e) {}
+
+  /** 이번 방문에서 관리자로 해제된 상태인지
+   *  · 주소 뒤 ?admin=7671 이 있으면 이번 로드에 한해 해제 (저장하지 않음) */
+  function isAdminUnlocked() {
+    if (adminUnlocked) return true;
+    try {
+      if (new URLSearchParams(location.search).get("admin") === ADMIN_CODE) {
+        adminUnlocked = true;
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  /** 관리자 코드가 맞으면 이번 방문 동안만 잠금 해제하고 화면을 즉시 갱신
+   *  (저장하지 않으므로 나갔다 다시 들어오면 잠김) */
+  function applyAdminUnlock() {
+    adminUnlocked = true;
+    setupStartLock(); // 시작 화면 갱신(시작 버튼 노출)
+    setupLetterLock(); // 봉투 화면 갱신
+  }
+
+  /** 관리자 코드 입력창을 띄우고, 맞으면 잠금 해제 */
+  function promptAdminCode() {
+    const code = window.prompt("관리자 코드를 입력하세요");
+    if (code == null) return; // 취소
+    if (code.trim() === ADMIN_CODE) {
+      applyAdminUnlock();
+      window.alert("🔓 관리자 모드 — 날짜 잠금이 해제되었어요.");
+    } else {
+      window.alert("코드가 올바르지 않아요.");
+    }
+  }
+
+  /** 관리자 입장 방법 연결
+   *  1) 잠금 화면의 '🔒 관리자 입장' 버튼
+   *  2) 숨은 트리거: 히어로 문구(❤️ 우리의 100일 ❤️) 5번 빠르게 탭 */
+  function setupAdminEntry() {
+    // 1) 보이는 버튼
+    if (refs.heroAdmin) {
+      refs.heroAdmin.addEventListener("click", promptAdminCode);
+    }
+    // 2) 숨은 트리거 (백업)
+    const zone = document.querySelector(".hero-eyebrow");
+    if (zone) {
+      let taps = 0;
+      let timer = null;
+      zone.addEventListener("click", () => {
+        taps += 1;
+        clearTimeout(timer);
+        timer = setTimeout(() => { taps = 0; }, 1500); // 1.5초 안에 5번
+        if (taps >= 5) { taps = 0; promptAdminCode(); }
+      });
+    }
+  }
+
   /** 편지 열림 기준 시각(해당 날짜 0시) */
   function getUnlockTime() {
     return new Date(APP_DATA.letterUnlock.date + "T00:00:00");
@@ -572,6 +642,7 @@
   function isLetterLocked() {
     const cfg = APP_DATA.letterUnlock;
     if (!cfg || !cfg.enabled) return false;
+    if (isAdminUnlocked()) return false; // 관리자 코드로 해제됨
     return new Date() < getUnlockTime();
   }
 
@@ -598,14 +669,16 @@
       refs.heroCountdown.style.display = "none";
       refs.heroSub.textContent = "함께 만든 추억을 하나씩 열어볼까요?";
       refs.heroHint.style.display = "";
+      if (refs.heroAdmin) refs.heroAdmin.style.display = "none";
       return;
     }
 
-    // 잠금 상태 → 시작 버튼 숨기고 카운트다운 표시 (1초마다 갱신)
+    // 잠금 상태 → 시작 버튼 숨기고 카운트다운 + 관리자 입장 버튼 표시
     refs.startBtn.style.display = "none";
     refs.heroHint.style.display = "none";
     refs.heroSub.textContent = "💌 100일이 되는 날 공개됩니다";
     refs.heroCountdown.style.display = "";
+    if (refs.heroAdmin) refs.heroAdmin.style.display = "";
     const tick = () => {
       if (!isLetterLocked()) { setupStartLock(); return; } // 시간이 되면 자동 해제
       refs.heroCountdown.textContent = `열리기까지  ${remainingText()}`;
@@ -642,6 +715,7 @@
      ===================================================================== */
   buildTimeline();
   updateCounter();
+  setupAdminEntry(); // 관리자 코드(7671) 입장: 버튼 + 숨은 트리거
   setupStartLock(); // 시작 화면 잠금/카운트다운 구성 (100일 전이면 시작 버튼 숨김)
   // 자정을 넘겨도 카운터가 갱신되도록 1분마다 점검
   setInterval(() => {

@@ -122,6 +122,20 @@
     },
 
     /**
+     * 모든 조각을 다시 미공개 상태로 되돌린다 (퀴즈 재도전 시).
+     * 미니/풀 보드 조각과 완성 보드의 합쳐짐/사진 상태까지 초기화.
+     */
+    reset() {
+      this.revealed = 0;
+      [this.miniPieces, this.fullPieces].forEach((set) => {
+        set.forEach((p) => p.classList.remove("is-revealed", "just-won"));
+      });
+      if (this.fullBoardEl) {
+        this.fullBoardEl.classList.remove("is-assembled", "is-complete", "show-photo");
+      }
+    },
+
+    /**
      * 완성 화면 진입 시 호출.
      * 혹시 아직 안 뒤집힌 조각이 있으면 마저 뒤집은 뒤,
      * 조각 사이의 틈을 없애 9조각을 '한 장의 사진'으로 합치는 마무리 연출.

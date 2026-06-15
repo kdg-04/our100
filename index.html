@@ -32,12 +32,20 @@
     <canvas id="hero-stars" class="stars-canvas" aria-hidden="true"></canvas>
 
     <div class="hero-inner reveal">
+      <!-- 가는 선 장식 — 사이트의 별/✨ 테마와 어울리는 반짝임 트리오 -->
+      <svg class="hero-anchor" viewBox="0 0 80 40" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M40 6 C41 15 43 17 52 18 C43 19 41 21 40 30 C39 21 37 19 28 18 C37 17 39 15 40 6 Z" />
+        <path d="M16 16 C16.6 21 17.6 22 22 22.6 C17.6 23.2 16.6 24 16 29 C15.4 24 14.4 23.2 10 22.6 C14.4 22 15.4 21 16 16 Z" />
+        <path d="M64 14 C64.5 18 65.3 18.8 69 19.3 C65.3 19.8 64.5 20.6 64 24 C63.5 20.6 62.7 19.8 59 19.3 C62.7 18.8 63.5 18 64 14 Z" />
+      </svg>
       <p class="hero-eyebrow">❤️ 우리의 100일 ❤️</p>
       <h1 class="hero-title">다연님을 위한<br />작은 이벤트가<br />준비되어 있습니다.</h1>
       <p class="hero-sub" id="hero-sub">함께 만든 추억을 하나씩 열어볼까요?</p>
       <button class="btn btn-primary" id="start-btn" type="button">시작하기</button>
       <!-- 100일 전: 시작 버튼 대신 카운트다운 표시 (main.js가 제어) -->
       <p class="hero-countdown" id="hero-countdown" style="display: none"></p>
+      <!-- 잠긴 상태에서만 보이는 관리자 입장 버튼 (코드 7671) -->
+      <button class="hero-admin" id="hero-admin" type="button" style="display: none">🔒 관리자 입장</button>
       <p class="hero-hint" id="hero-hint">화면을 가볍게 터치하며 진행해 주세요 ✨</p>
     </div>
   </section>

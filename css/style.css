@@ -55,6 +55,13 @@ body {
   line-height: 1.75;
   overflow-x: hidden;
   letter-spacing: 0.01em;
+  /* 첫 로딩 시 전체가 부드럽게 나타남 (모션 최소화 설정이면 자동 비활성) */
+  animation: pageFade 0.6s var(--ease) both;
+}
+
+@keyframes pageFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 button {
@@ -269,12 +276,32 @@ img {
   padding: 20px;
 }
 
+/* Hero 가는 선 장식 — 은은하게 위아래로 떠다님 */
+.hero-anchor {
+  display: block;
+  width: clamp(58px, 16vw, 74px);
+  height: auto;
+  margin: 0 auto 14px;
+  color: var(--gold);
+  opacity: 0.9;
+  animation: heroFloat 4.5s ease-in-out infinite;
+}
+
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
 .hero-eyebrow {
   font-family: var(--font-serif);
   font-size: clamp(1rem, 4.5vw, 1.3rem);
   color: var(--gold-deep);
   letter-spacing: 0.06em;
   animation: pulseSoft 2.6s ease-in-out infinite;
+  /* 관리자 코드용 5회 탭 영역 — 빠르게 눌러도 글자가 선택되지 않게 */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @keyframes pulseSoft {
@@ -318,9 +345,33 @@ img {
   letter-spacing: 0.01em;
 }
 
+/* 잠금 화면 관리자 입장 버튼 (코드 7671) — 눈에 띄지 않게 은은하게 */
+.hero-admin {
+  margin-top: 18px;
+  min-height: 44px; /* 터치 영역 확보 */
+  padding: 9px 18px;
+  font-size: 0.85rem;
+  color: var(--text-faint);
+  background: rgba(255, 253, 248, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease), transform 0.15s var(--ease);
+}
+
+.hero-admin:hover {
+  color: var(--gold-deep);
+  background: rgba(255, 253, 248, 0.85);
+}
+
+.hero-admin:active {
+  transform: scale(0.97);
+}
+
 /* ---------- 8. 퀴즈 화면 ---------- */
 #quiz {
-  align-items: flex-start;
+  /* 콘텐츠가 짧으면 세로 가운데, 길어지면 화면이 늘어나며 스크롤(잘림 없음) */
+  align-items: center;
 }
 
 .quiz-header {
@@ -430,6 +481,11 @@ img {
   box-shadow: var(--shadow-soft);
 }
 
+/* 모바일 탭(누름) 피드백 — 살짝 눌리는 느낌 */
+.quiz-option:not(:disabled):active {
+  transform: scale(0.98);
+}
+
 .quiz-option:disabled {
   cursor: default;
 }
@@ -523,6 +579,46 @@ img {
   15% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
   80% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
   100% { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.96); }
+}
+
+/* 통과 점수 미달 — 다시 풀기 카드 */
+.quiz-retry {
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.45s var(--ease), transform 0.45s var(--ease);
+}
+
+.quiz-retry.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.quiz-retry .quiz-question {
+  margin-bottom: 6px;
+}
+
+.quiz-retry-score {
+  font-size: 1.05rem;
+  color: var(--text-soft);
+  margin-bottom: 6px;
+}
+
+.quiz-retry-score strong {
+  color: var(--gold-deep);
+  font-weight: 800;
+  font-size: 1.25rem;
+}
+
+.quiz-retry-msg {
+  font-size: 0.98rem;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+.quiz-retry .quiz-next {
+  justify-content: center;
+  margin-top: 22px;
 }
 
 .quiz-next {
@@ -925,6 +1021,10 @@ img {
   box-shadow: var(--shadow-gold);
 }
 
+.memory-btn:active {
+  transform: scale(0.98);
+}
+
 .letter-actions {
   margin: 30px 0 10px;
   text-align: center;
@@ -1013,6 +1113,7 @@ img {
   border-radius: 12px;
   background: var(--cream-deep);
   box-shadow: var(--shadow-soft);
+  cursor: zoom-in; /* 탭하면 크게 보기 */
 }
 
 /* 사진 로딩 실패 시 대체 박스 */
@@ -1031,6 +1132,48 @@ img {
   line-height: 1.9;
   color: var(--text);
   font-size: 1rem;
+}
+
+/* 사진 라이트박스 — 전체화면 크게 보기 */
+.photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 70; /* 추억 모달(50)보다 위 */
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 15, 10, 0.88);
+  backdrop-filter: blur(6px);
+  cursor: zoom-out;
+}
+
+.photo-lightbox.is-open {
+  display: flex;
+  animation: fadeUp 0.3s var(--ease);
+}
+
+.photo-lightbox-img {
+  max-width: 100%;
+  max-height: 86vh;
+  object-fit: contain;
+  border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
+.photo-lightbox-close {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 14px);
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 1.1rem;
+  display: grid;
+  place-items: center;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ---------- 13. 미래 타임라인 ---------- */
@@ -1201,7 +1344,19 @@ img {
   .puzzle-board--mini { max-width: 260px; }
 }
 
-/* ---------- 16. 접근성: 모션 최소화 ---------- */
+/* ---------- 16. 접근성: 키보드 포커스 링 ----------
+   마우스 클릭 때는 안 보이고, 키보드(Tab) 탐색 때만 표시됨 */
+.btn:focus-visible,
+.quiz-option:focus-visible,
+.memory-btn:focus-visible,
+.modal-close:focus-visible,
+.envelope:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--gold-deep);
+  outline-offset: 3px;
+}
+
+/* ---------- 17. 접근성: 모션 최소화 ---------- */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
