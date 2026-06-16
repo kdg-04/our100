@@ -1357,9 +1357,42 @@ img {
 }
 
 .timeline-item.is-goal .timeline-icon {
-  background: linear-gradient(135deg, #fbe3ea, var(--blush));
-  border-color: var(--blush);
-  color: #a85f7a; /* 연한 블러시 배경 위에서도 또렷한 로즈 톤 */
+  position: relative;
+  background: linear-gradient(135deg, #fff4e1, #fde3ea 55%, var(--blush));
+  border-color: var(--gold-soft);
+  font-size: 1.35rem; /* 💍 이모지를 조금 크게 */
+  overflow: visible;
+  animation: ringGlow 2.6s ease-in-out infinite;
+}
+
+/* 반지를 돋보이게 — 은은하게 숨쉬는 골드+블러시 글로우 */
+@keyframes ringGlow {
+  0%, 100% {
+    box-shadow: 0 4px 14px rgba(227, 183, 166, 0.35), 0 0 0 0 rgba(230, 207, 142, 0);
+  }
+  50% {
+    box-shadow: 0 6px 22px rgba(227, 183, 166, 0.6), 0 0 0 5px rgba(230, 207, 142, 0.22);
+  }
+}
+
+/* 반지 옆에서 반짝이는 작은 별 */
+.timeline-item.is-goal .timeline-icon::after {
+  content: "✨";
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  font-size: 0.72rem;
+  animation: ringTwinkle 1.9s ease-in-out infinite;
+}
+
+@keyframes ringTwinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(-8deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(12deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-item.is-goal .timeline-icon { animation: none; }
+  .timeline-item.is-goal .timeline-icon::after { animation: none; opacity: 0.85; }
 }
 
 /* 100일 — 이 이벤트의 주인공 마일스톤은 항상 은은한 골드 강조 */

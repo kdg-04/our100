@@ -706,12 +706,8 @@
       heartPath(4.08, 3.95, 0.66) + sparkPath(19.6, 5.6, 0.42) + sparkPath(4.4, 5.6, 0.36)
     ),
   };
-  // 목표(결혼) — 다이아몬드 반지
-  const RING_SVG = tlIcon(
-    '<circle cx="12" cy="16" r="4.7" fill="none" stroke="currentColor" stroke-width="1.8"/>' + // 밴드
-      '<path fill="currentColor" d="M9 4h6l1.6 2.4-4.6 4.3-4.6-4.3z"/>' + // 다이아몬드
-      sparkPath(18.2, 3.8, 0.42) // 반짝임
-  );
+  // 목표(결혼) — 반지는 이모지로(💍), CSS에서 글로우/반짝임으로 돋보이게 처리
+  const RING_EMOJI = "💍";
 
   /** 타임라인 항목을 렌더링 */
   function buildTimeline() {
@@ -736,7 +732,7 @@
         statusText = `D-${remain} 남았어요 ⏳`;
       }
 
-      const iconSvg = item.goal ? RING_SVG : TL_ICONS[item.days] || TL_ICONS[100];
+      const iconSvg = item.goal ? RING_EMOJI : TL_ICONS[item.days] || TL_ICONS[100];
       li.innerHTML =
         `<span class="timeline-icon">${iconSvg}</span>` +
         `<span class="timeline-text">` +
