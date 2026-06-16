@@ -12,6 +12,13 @@
   // 열 위치: 0% / 50% / 100%, 행 위치: 0% / 50% / 100%
   const POSITIONS = ["0%", "50%", "100%"];
 
+  // 퍼즐 조각 아이콘(골드 톤 SVG). 기존 초록 🧩 이모지가 크림/골드 팔레트에서
+  // 튀던 것을 사이트 톤에 맞는 골드 조각으로 교체. fill은 currentColor로 상속.
+  const PIECE_SVG =
+    '<svg class="pf-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+    '<path fill="currentColor" d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7s2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"/>' +
+    "</svg>";
+
   const Puzzle = {
     finalSrc: "",
     revealed: 0,     // 지금까지 공개된 조각 수
@@ -80,8 +87,8 @@
         const front = document.createElement("div");
         front.className = "puzzle-face puzzle-face--front";
         front.innerHTML = isMini
-          ? "🧩"
-          : `🧩<span class="pf-num">${i + 1}</span>`;
+          ? PIECE_SVG
+          : `${PIECE_SVG}<span class="pf-num">${i + 1}</span>`;
 
         // 뒷면 (사진 슬라이스)
         const back = document.createElement("div");

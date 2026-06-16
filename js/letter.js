@@ -104,7 +104,11 @@
 
     /** 스크롤 시 단락이 차례로 나타나도록 관찰 */
     _observeReveal() {
-      const items = this.refs.paper.querySelectorAll(".scroll-reveal");
+      const items = Array.from(this.refs.paper.querySelectorAll(".scroll-reveal"));
+      // 편지를 열면 상단이 비어 보이지 않도록, 첫 두 단락은 진입하자마자 표시한다.
+      const EAGER = 2;
+      items.slice(0, EAGER).forEach((el) => el.classList.add("in-view"));
+
       const io = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
@@ -116,7 +120,8 @@
         },
         { threshold: 0.15, rootMargin: "0px 0px -8% 0px" }
       );
-      items.forEach((el) => io.observe(el));
+      // 나머지 단락만 스크롤에 따라 순차 등장
+      items.slice(EAGER).forEach((el) => io.observe(el));
     },
 
     /* ---------------- 추억 모달 ---------------- */

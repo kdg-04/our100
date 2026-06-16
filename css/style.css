@@ -16,7 +16,7 @@
   --blush: #e3b7a6;
   --text: #5a4a3a;
   --text-soft: #8a7a68;
-  --text-faint: #b3a690;
+  --text-faint: #9a8a6e; /* 밝은 배경에서도 읽히도록 대비 보강(기존 #b3a690은 너무 흐렸음) */
   --line: rgba(201, 162, 75, 0.25);
   --white-glass: rgba(255, 253, 248, 0.85);
 
@@ -88,17 +88,27 @@ img {
 
 .particle {
   position: absolute;
-  bottom: -40px;
-  font-size: 18px;
+  top: -48px;
+  width: 18px;
+  height: 18px;
   opacity: 0;
   will-change: transform, opacity;
-  animation: floatUp linear forwards;
+  animation: floatDown linear forwards;
   user-select: none;
+  pointer-events: none;
 }
 
-@keyframes floatUp {
+.particle svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(150, 120, 60, 0.18));
+}
+
+/* 위에서 아래로 부드럽게 내려오며 살짝 흔들리고 회전 */
+@keyframes floatDown {
   0% {
-    transform: translateY(0) translateX(0) rotate(0deg) scale(0.6);
+    transform: translateY(0) translateX(0) rotate(0deg) scale(0.5);
     opacity: 0;
   }
   12% {
@@ -108,7 +118,7 @@ img {
     opacity: var(--p-opacity, 0.9);
   }
   100% {
-    transform: translateY(-115vh) translateX(var(--p-drift, 30px)) rotate(360deg) scale(1);
+    transform: translateY(115vh) translateX(var(--p-drift, 30px)) rotate(200deg) scale(1);
     opacity: 0;
   }
 }
@@ -127,18 +137,35 @@ img {
 
 .screen.is-active {
   display: flex;
-  animation: screenIn 0.7s var(--ease) both;
+  position: relative;
+  z-index: 1;
+  animation: screenIn 0.6s var(--ease) both;
+}
+
+/* 화면 전환: 나가는 화면을 잠깐 겹쳐 페이드아웃 → 부드러운 크로스페이드 */
+.screen.is-leaving {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  animation: screenOut 0.46s var(--ease) both;
 }
 
 @keyframes screenIn {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translateY(14px) scale(0.995);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
+}
+
+@keyframes screenOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.01); }
 }
 
 .container {
@@ -262,8 +289,22 @@ img {
 
 /* ---------- 7. 시작 화면(HERO) ---------- */
 #hero {
-  background: radial-gradient(circle at 50% 30%, #fffdf8 0%, #f7eede 45%, #efe2c6 100%);
+  background: radial-gradient(circle at 50% 28%, #fffdf8 0%, #f6ecd8 46%, #ead9b8 100%);
   text-align: center;
+}
+
+/* 중앙 워밍 글로우 — 콘텐츠에 포커스를 주고 깊이를 더한다 */
+#hero::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: min(125vw, 620px);
+  height: min(125vw, 620px);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(201, 162, 75, 0.18), rgba(201, 162, 75, 0) 60%);
+  z-index: 0;
+  pointer-events: none;
 }
 
 .hero-inner {
@@ -293,6 +334,9 @@ img {
 }
 
 .hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
   font-family: var(--font-serif);
   font-size: clamp(1rem, 4.5vw, 1.3rem);
   color: var(--gold-deep);
@@ -302,6 +346,19 @@ img {
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* eyebrow 양옆 가는 골드 장식선 — 작은 라벨 칩처럼 정돈된 느낌 */
+.hero-eyebrow::before,
+.hero-eyebrow::after {
+  content: "";
+  width: clamp(18px, 7vw, 38px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-soft));
+}
+
+.hero-eyebrow::after {
+  background: linear-gradient(90deg, var(--gold-soft), transparent);
 }
 
 @keyframes pulseSoft {
@@ -372,6 +429,18 @@ img {
 #quiz {
   /* 콘텐츠가 짧으면 세로 가운데, 길어지면 화면이 늘어나며 스크롤(잘림 없음) */
   align-items: center;
+  /* 위에서 빛이 내려오는 듯한 배경 — 화면마다 톤에 변화를 줘 단조로움을 덜어냄 */
+  background: radial-gradient(circle at 50% 0%, #fffdf8 0%, #f4ebd6 78%);
+}
+
+/* 퍼즐 완성 — 따뜻한 골드 축하 톤 */
+#puzzle {
+  background: radial-gradient(circle at 50% 22%, #fff7e6 0%, #f0e2c2 96%);
+}
+
+/* 타임라인 — 아래로 갈수록 살짝 어스름해져 다음(밤하늘 엔딩)으로 자연스럽게 이어짐 */
+#timeline {
+  background: linear-gradient(180deg, #fdf6ea 0%, #ece3d0 58%, #ddd8cd 100%);
 }
 
 .quiz-header {
@@ -407,6 +476,17 @@ img {
 
 .quiz-pieces {
   color: var(--gold-deep);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 조각 카운터/획득 토스트의 골드 SVG 조각 아이콘 (글자색을 그대로 따름) */
+.piece-ico {
+  width: 1.05em;
+  height: 1.05em;
+  flex: 0 0 auto;
+  vertical-align: -0.15em;
 }
 
 /* 문제 카드 */
@@ -725,6 +805,14 @@ img {
   font-size: 1.1rem;
 }
 
+/* 앞면 골드 SVG 조각 — 화면을 가득 채우지 않게 비율로 절제 */
+.puzzle-face--front .pf-icon {
+  width: 46%;
+  height: 46%;
+  color: var(--gold-soft);
+  opacity: 0.92;
+}
+
 .puzzle-face--front .pf-num {
   font-size: 0.7rem;
   color: var(--text-faint);
@@ -1030,6 +1118,30 @@ img {
   text-align: center;
 }
 
+/* 편지를 끝까지 읽어 '다음' 버튼이 화면에 들어오면 은은하게 떠오르며 숨쉬듯 빛난다 */
+.letter-actions .btn.is-ready {
+  animation: btnBreathe 2.4s ease-in-out infinite;
+}
+
+@keyframes btnBreathe {
+  0%, 100% {
+    box-shadow: 0 6px 18px rgba(201, 162, 75, 0.25);
+    transform: translateY(0);
+  }
+  50% {
+    box-shadow: 0 12px 32px rgba(201, 162, 75, 0.55);
+    transform: translateY(-3px);
+  }
+}
+
+/* 동작 줄이기 설정이면 깜빡임 대신 고정된 강조만 */
+@media (prefers-reduced-motion: reduce) {
+  .letter-actions .btn.is-ready {
+    animation: none;
+    box-shadow: 0 8px 24px rgba(201, 162, 75, 0.5);
+  }
+}
+
 /* ---------- 12. 추억 모달 ---------- */
 .modal-overlay {
   position: fixed;
@@ -1228,7 +1340,14 @@ img {
   font-size: 1.15rem;
   background: var(--cream);
   border: 2px solid var(--gold-soft);
+  color: var(--gold-deep); /* 아이콘 SVG는 currentColor를 따른다 */
   z-index: 1;
+}
+
+/* 통일된 타임라인 SVG 아이콘(하트/반지) */
+.timeline-icon .tl-ico {
+  width: 20px;
+  height: 20px;
 }
 
 .timeline-item.is-done .timeline-icon {
@@ -1240,6 +1359,35 @@ img {
 .timeline-item.is-goal .timeline-icon {
   background: linear-gradient(135deg, #fbe3ea, var(--blush));
   border-color: var(--blush);
+  color: #a85f7a; /* 연한 블러시 배경 위에서도 또렷한 로즈 톤 */
+}
+
+/* 100일 — 이 이벤트의 주인공 마일스톤은 항상 은은한 골드 강조 */
+.timeline-item.is-headline {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, var(--ivory), #fdf3dc);
+  box-shadow: 0 8px 26px rgba(201, 162, 75, 0.28);
+}
+
+.timeline-item.is-headline .timeline-icon {
+  box-shadow: 0 0 0 4px rgba(230, 207, 142, 0.4);
+}
+
+/* 100일에 도달한 날(6/22 이후)에는 한층 더 살아 숨쉬듯 빛난다 */
+.timeline-item.is-headline.is-done {
+  animation: headlineGlow 2.6s ease-in-out infinite;
+}
+
+@keyframes headlineGlow {
+  0%, 100% { box-shadow: 0 8px 24px rgba(201, 162, 75, 0.28); }
+  50% { box-shadow: 0 12px 36px rgba(201, 162, 75, 0.55); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-item.is-headline.is-done {
+    animation: none;
+    box-shadow: 0 10px 30px rgba(201, 162, 75, 0.45);
+  }
 }
 
 .timeline-text {
@@ -1307,6 +1455,65 @@ img {
   color: #fdf6e6;
   text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
   animation: pulseSoft 3s ease-in-out infinite;
+}
+
+/* ---- 100일(D+100) 당일 전용 화려한 축하 ---- */
+.ending-badge {
+  font-family: var(--font-serif);
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  padding: 7px 18px;
+  border-radius: 999px;
+  color: #4a3a18;
+  background: linear-gradient(135deg, #ffe9a8, #f4c95d);
+  box-shadow: 0 6px 22px rgba(244, 201, 93, 0.45);
+  margin-bottom: 6px;
+  animation: badgePop 0.7s var(--ease) both, badgeFloat 3s ease-in-out 0.7s infinite;
+}
+
+@keyframes badgePop {
+  0% { opacity: 0; transform: scale(0.6) translateY(8px); }
+  60% { transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes badgeFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* 축하 모드의 D+ 숫자: 금빛이 흐르고 더 강하게 빛난다 */
+.is-celebrate .ending-counter-value {
+  background: linear-gradient(110deg, #fff2c8, #f4c95d 35%, #ffe9a8 50%, #e6b04a 70%, #fff2c8);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: 0 0 42px rgba(244, 201, 93, 0.65);
+  animation: goldShine 3s linear infinite;
+}
+
+@keyframes goldShine {
+  0% { background-position: 0% 0; }
+  100% { background-position: 250% 0; }
+}
+
+/* 카운트업 완료 순간 '팡' 튀어오름 (금빛 흐름은 계속 유지) */
+.ending-counter-value.pop {
+  animation: goldShine 3s linear infinite, ddayPop 0.7s var(--ease);
+}
+
+@keyframes ddayPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  70% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ending-badge { animation: none; }
+  .is-celebrate .ending-counter-value,
+  .ending-counter-value.pop { animation: none; }
 }
 
 #ending .btn-ghost {

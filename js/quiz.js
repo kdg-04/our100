@@ -9,6 +9,13 @@
 (function () {
   "use strict";
 
+  // 퍼즐 조각 아이콘(골드 SVG) — 헤더의 조각 카운터/획득 토스트에서 사용.
+  // fill은 currentColor라 쓰이는 곳의 글자색(골드/흰색)을 그대로 따른다.
+  const PIECE_ICON =
+    '<svg class="piece-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+    '<path fill="currentColor" d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7s2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"/>' +
+    "</svg>";
+
   const Quiz = {
     data: [],
     puzzle: null,
@@ -154,7 +161,8 @@
     _showPieceToast(count) {
       const toast = document.createElement("div");
       toast.className = "piece-toast";
-      toast.textContent = `🧩 추억 조각 획득!  ${count} / ${this.data.length}`;
+      // count/length는 내부 정수 카운터라 안전 (아이콘만 우리가 정의한 SVG)
+      toast.innerHTML = `${PIECE_ICON} 추억 조각 획득!  ${count} / ${this.data.length}`;
       document.body.appendChild(toast);
       // 애니메이션(2.4s) 종료 후 DOM에서 제거
       setTimeout(() => toast.remove(), 2400);
@@ -238,7 +246,8 @@
       const total = this.data.length;
       const num = this.current + 1;
       this.refs.count.textContent = `Q${num} / ${total}`;
-      this.refs.pieces.textContent = `🧩 ${this.pieces} / ${total}`;
+      // 조각 아이콘만 우리가 정의한 SVG, 숫자는 내부 정수 카운터라 안전
+      this.refs.pieces.innerHTML = `${PIECE_ICON} ${this.pieces} / ${total}`;
       const pct = (this.answered / total) * 100; // 진행바는 푼 문제 기준
       this.refs.progressBar.style.width = `${pct}%`;
     },

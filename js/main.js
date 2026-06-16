@@ -236,14 +236,41 @@
 
   let currentScreen = "hero";
 
-  /** 지정한 화면으로 전환 + 화면별 진입 동작 실행 */
+  /** 떠다니는 이모지를 띄우지 않을 '차분한' 화면
+   *  편지 본문(letter)과 그 직전 봉투/편지 준비 화면(unlock)은
+   *  몰입을 위해 파티클을 숨긴다. */
+  function isQuietScreen(name) {
+    return name === "letter" || name === "unlock";
+  }
+
+  let leaveTimer = null;
+
+  /** 지정한 화면으로 전환 + 화면별 진입 동작 실행
+   *  나가는 화면을 잠깐 겹쳐 페이드아웃시켜 '뚝' 끊기지 않고 부드럽게 넘어간다. */
   function goTo(name) {
-    if (!screens[name]) return;
-    Object.values(screens).forEach((el) => el.classList.remove("is-active"));
-    screens[name].classList.add("is-active");
+    if (!screens[name] || name === currentScreen) return;
+    const prevEl = screens[currentScreen];
+    const nextEl = screens[name];
+
+    // 직전/다음을 제외한 화면의 잔여 상태 정리
+    Object.values(screens).forEach((el) => {
+      if (el !== prevEl && el !== nextEl) el.classList.remove("is-active", "is-leaving");
+    });
+
+    // 나가는 화면: 위에 겹쳐 페이드아웃(크로스페이드) 후 정리
+    if (prevEl && prevEl !== nextEl) {
+      prevEl.classList.add("is-leaving");
+      clearTimeout(leaveTimer);
+      const leaving = prevEl;
+      leaveTimer = setTimeout(() => leaving.classList.remove("is-active", "is-leaving"), 460);
+    }
+
+    nextEl.classList.remove("is-leaving");
+    nextEl.classList.add("is-active");
     currentScreen = name;
-    // 편지를 읽을 때는 떠다니는 이모지(파티클)가 거슬리지 않도록 숨김
-    particleLayer.style.display = name === "letter" ? "none" : "";
+
+    // 편지/봉투 화면에서는 떠다니는 이모지(파티클)가 거슬리지 않도록 숨김
+    particleLayer.style.display = isQuietScreen(name) ? "none" : "";
     window.scrollTo({ top: 0, behavior: "auto" });
     onEnter(name);
   }
@@ -263,13 +290,19 @@
         break;
       case "letter":
         Letter.reveal();
+        watchLetterEnd(); // 끝까지 읽으면 '다음' 버튼이 은은히 빛나도록
         break;
       case "timeline":
         animateTimeline();
         break;
       case "ending":
         startStars(refs.endingStars, { dark: true });
-        burstHearts(28); // 축하 하트 폭죽
+        // 100일(D+100) 당일이면 화려한 축하 연출, 그 외에는 평소 하트 폭죽
+        if (getDday() === 100) {
+          celebrateHundred();
+        } else {
+          burstHearts(28);
+        }
         break;
     }
   }
@@ -293,6 +326,8 @@
     modalTitle: document.getElementById("memory-modal-title"),
     modalGallery: document.getElementById("memory-modal-gallery"),
     modalDesc: document.getElementById("memory-modal-desc"),
+    // 편지 → 다음(타임라인) 버튼
+    toTimelineBtn: document.getElementById("to-timeline-btn"),
     // 타임라인 / 엔딩
     timelineList: document.getElementById("timeline-list"),
     ddayValue: document.getElementById("dday-value"),
@@ -357,6 +392,34 @@
   refs.endingMessage.textContent = APP_DATA.endingMessage;
 
   /* =====================================================================
+     ❹-b 이미지 프리로드
+     ---------------------------------------------------------------------
+     추억 모달 사진(12장)과 퍼즐 완성 사진을 미리 받아둔다.
+     → 모달을 열거나 퍼즐이 완성되는 '결정적 순간'에 사진이 깜빡이거나
+       "준비 중" 대체 박스가 잠깐 보이는 일을 막는다 (특히 모바일 데이터).
+     첫 화면 렌더를 방해하지 않도록 브라우저가 한가할 때 조용히 시작한다.
+     실패해도 무시 — 실제 표시 시점에 기존 대체 박스 로직이 처리한다.
+     ===================================================================== */
+  function preloadImages() {
+    const base = APP_DATA.imageBase;
+    const urls = [APP_DATA.finalImage];
+    Object.values(APP_DATA.memories).forEach((mem) => {
+      (mem.photos || []).forEach((file) => urls.push(base + file));
+    });
+    // 중복 제거 후 백그라운드 로드 (브라우저 캐시에 올려두기만 하면 됨)
+    Array.from(new Set(urls)).forEach((src) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = src;
+    });
+  }
+  if ("requestIdleCallback" in window) {
+    requestIdleCallback(preloadImages, { timeout: 3000 });
+  } else {
+    setTimeout(preloadImages, 1200);
+  }
+
+  /* =====================================================================
      ❺ 버튼/봉투 이벤트
      ===================================================================== */
   document.getElementById("start-btn").addEventListener("click", () => goTo("quiz"));
@@ -386,23 +449,39 @@
   /* =====================================================================
      ❻ 떠다니는 파티클 (하트/별)
      ===================================================================== */
-  const PARTICLE_CHARS = ["❤", "🤍", "✨", "💛", "🌟"];
+  // 위에서 살포시 내려오는 장식 파티클 — 이모지 대신 톤이 통일된 SVG(골드 별/반짝임 + 은은한 하트)
+  const HEART_PARTICLE_D =
+    "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z";
+  const PARTICLE_SVGS = [
+    // 4갈래 반짝임(골드)
+    '<svg viewBox="0 0 24 24"><path fill="#dcb85f" d="M12 1.5C13 8 16 11 22.5 12 16 13 13 16 12 22.5 11 16 8 13 1.5 12 8 11 11 8 12 1.5Z"/></svg>',
+    // 5각 별(밝은 골드)
+    '<svg viewBox="0 0 24 24"><path fill="#e6c878" d="M12 2l2.6 6.3 6.8.5-5.2 4.4 1.7 6.6L12 16.9 6.1 19.8l1.7-6.6L2.6 8.8l6.8-.5z"/></svg>',
+    // 하트(블러시)
+    '<svg viewBox="0 0 24 24"><path fill="#e3b7a6" d="' + HEART_PARTICLE_D + '"/></svg>',
+    // 하트(소프트 골드)
+    '<svg viewBox="0 0 24 24"><path fill="#e8cf97" d="' + HEART_PARTICLE_D + '"/></svg>',
+  ];
   const particleLayer = document.getElementById("particles");
 
-  /** 파티클 1개 생성 */
-  function spawnParticle() {
+  /** 파티클 1개 생성 — 화면 위에서 아래로 살며시 내려온다.
+   *  @param {object} [opts] { svgs, minSize, sizeRange } */
+  function spawnParticle(opts) {
+    opts = opts && typeof opts === "object" ? opts : {};
     if (document.hidden) return;
-    if (currentScreen === "letter") return; // 편지 화면에서는 생성 안 함
+    if (isQuietScreen(currentScreen)) return; // 편지/봉투 화면에서는 생성 안 함
+    const set = opts.svgs || PARTICLE_SVGS;
     const el = document.createElement("span");
     el.className = "particle";
-    el.textContent = PARTICLE_CHARS[Math.floor(Math.random() * PARTICLE_CHARS.length)];
+    el.innerHTML = set[Math.floor(Math.random() * set.length)];
 
-    const size = 12 + Math.random() * 20;
-    const duration = 7 + Math.random() * 7;
+    const size = (opts.minSize || 12) + Math.random() * (opts.sizeRange || 14);
+    const duration = 8 + Math.random() * 7;
     const drift = (Math.random() - 0.5) * 160;
 
     el.style.left = Math.random() * 100 + "vw";
-    el.style.fontSize = size + "px";
+    el.style.width = size + "px";
+    el.style.height = size + "px";
     el.style.animationDuration = duration + "s";
     el.style.setProperty("--p-drift", drift + "px");
     el.style.setProperty("--p-opacity", (0.4 + Math.random() * 0.5).toFixed(2));
@@ -420,6 +499,92 @@
     for (let i = 0; i < n; i++) {
       setTimeout(spawnParticle, i * 70);
     }
+  }
+
+  /* ---- 100일(D+100) 당일 전용 화려한 축하 연출 ---- */
+  const prefersReduce = () =>
+    !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  /** 엔딩 카운터 숫자를 0 → target 으로 카운트업 (모션 최소화면 즉시 표시) */
+  function countUpDday(target, done) {
+    if (prefersReduce()) {
+      refs.ddayValue.textContent = `D+${target}`;
+      if (done) done();
+      return;
+    }
+    const dur = 1600;
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = Math.min((now - t0) / dur, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      refs.ddayValue.textContent = `D+${Math.round(eased * target)}`;
+      if (t < 1) requestAnimationFrame(frame);
+      else if (done) done();
+    })(t0);
+  }
+
+  /** 풍성한 축하 폭죽 — 더 크고 많은 별/하트가 쏟아져 내린다 */
+  function celebrationBurst() {
+    const reduce = prefersReduce();
+    const rounds = reduce ? 1 : 3;
+    const per = reduce ? 14 : 28;
+    for (let r = 0; r < rounds; r++) {
+      for (let i = 0; i < per; i++) {
+        setTimeout(() => spawnParticle({ minSize: 16, sizeRange: 22 }), r * 650 + i * 40);
+      }
+    }
+  }
+
+  /** D+100 그날의 화려한 엔딩 — 카운트업 → 팡! → 축하 폭죽 */
+  function celebrateHundred() {
+    const counter = screens.ending.querySelector(".ending-counter");
+    screens.ending.classList.add("is-celebrate");
+
+    // 축하 배지 (중복 삽입 방지)
+    if (counter && !counter.querySelector(".ending-badge")) {
+      const badge = document.createElement("span");
+      badge.className = "ending-badge";
+      badge.textContent = "🎉 100일 축하해 🎉";
+      counter.insertBefore(badge, counter.firstChild);
+    }
+
+    countUpDday(100, () => {
+      refs.ddayValue.classList.remove("pop");
+      void refs.ddayValue.offsetWidth; // 애니메이션 재시작용 reflow
+      refs.ddayValue.classList.add("pop");
+      celebrationBurst();
+    });
+  }
+
+  /* =====================================================================
+     ❻-b 편지 끝까지 읽으면 '다음' 버튼 강조
+     ---------------------------------------------------------------------
+     편지가 길어서 마지막까지 스크롤했을 때 '다가올 날들 보기' 버튼이
+     화면에 들어오면 은은하게 빛나도록(is-ready) 해, 다음 흐름으로 자연스럽게 이어준다.
+     ===================================================================== */
+  let letterEndWatched = false;
+  function watchLetterEnd() {
+    if (letterEndWatched) return; // 1회만 설정
+    letterEndWatched = true;
+    const btn = refs.toTimelineBtn;
+    if (!btn) return;
+    // IntersectionObserver 미지원 환경에서는 그냥 바로 강조
+    if (!("IntersectionObserver" in window)) {
+      btn.classList.add("is-ready");
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            btn.classList.add("is-ready");
+            io.disconnect();
+          }
+        });
+      },
+      { threshold: 0.6 }
+    );
+    io.observe(btn);
   }
 
   /* =====================================================================
@@ -497,6 +662,57 @@
   /* =====================================================================
      ❽ 미래 타임라인
      ===================================================================== */
+  // 타임라인 마일스톤 아이콘 — 모두 '하트' 계열이되 조금씩 다르게.
+  // 색은 상태(미도달/도달/목표)에 따라 CSS에서 currentColor로 바뀐다.
+  // 100→200→300→500→1000으로 갈수록 풍성해짐: 하트 → 라인하트 → 하트+반짝임 → 두 하트 → 하트+사방 반짝임.
+  function tlIcon(inner) {
+    return (
+      '<svg class="tl-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+      inner +
+      "</svg>"
+    );
+  }
+  // 채운 하트 패스 (변주의 기본형)
+  const HEART_D =
+    "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z";
+  /** 하트 1개를 (tx,ty) 위치에 s배율로 */
+  function heartPath(tx, ty, s) {
+    return (
+      '<path fill="currentColor" transform="translate(' + tx + " " + ty + ") scale(" + s + ')" d="' +
+      HEART_D +
+      '"/>'
+    );
+  }
+  /** 4갈래 반짝임(✦)을 (cx,cy) 중심에 s배율로 */
+  function sparkPath(cx, cy, s) {
+    return (
+      '<path fill="currentColor" transform="translate(' + cx + " " + cy + ") scale(" + s + ')" ' +
+      'd="M0 -6C.9 -1.7 1.7 -.9 6 0 1.7 .9 .9 1.7 0 6-.9 1.7-1.7 .9-6 0-1.7-.9-.9-1.7 0-6Z"/>'
+    );
+  }
+  const TL_ICONS = {
+    // 100일 — 라인(빈) 하트
+    100: tlIcon(
+      '<path fill="currentColor" d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/>'
+    ),
+    // 200일 — 채운 하트
+    200: tlIcon('<path fill="currentColor" d="' + HEART_D + '"/>'),
+    // 300일 — 하트(중앙) + 작은 반짝임 액센트
+    300: tlIcon(heartPath(2.64, 2.48, 0.78) + sparkPath(18.8, 5.4, 0.4)),
+    // 500일 — 두 개의 하트(쌍을 중앙에 배치)
+    500: tlIcon(heartPath(2.08, 6.67, 0.56) + heartPath(8.48, 4.67, 0.56)),
+    // 1000일 — 하트(중앙) + 양옆 대칭 반짝임
+    1000: tlIcon(
+      heartPath(4.08, 3.95, 0.66) + sparkPath(19.6, 5.6, 0.42) + sparkPath(4.4, 5.6, 0.36)
+    ),
+  };
+  // 목표(결혼) — 다이아몬드 반지
+  const RING_SVG = tlIcon(
+    '<circle cx="12" cy="16" r="4.7" fill="none" stroke="currentColor" stroke-width="1.8"/>' + // 밴드
+      '<path fill="currentColor" d="M9 4h6l1.6 2.4-4.6 4.3-4.6-4.3z"/>' + // 다이아몬드
+      sparkPath(18.2, 3.8, 0.42) // 반짝임
+  );
+
   /** 타임라인 항목을 렌더링 */
   function buildTimeline() {
     const dday = getDday();
@@ -505,6 +721,8 @@
     APP_DATA.timeline.forEach((item) => {
       const li = document.createElement("li");
       li.className = "timeline-item";
+      // 100일은 이 이벤트의 주인공 마일스톤 → 항상 은은한 골드 강조
+      if (item.days === 100) li.classList.add("is-headline");
 
       let statusText;
       if (item.goal) {
@@ -518,8 +736,9 @@
         statusText = `D-${remain} 남았어요 ⏳`;
       }
 
+      const iconSvg = item.goal ? RING_SVG : TL_ICONS[item.days] || TL_ICONS[100];
       li.innerHTML =
-        `<span class="timeline-icon">${item.goal && dday < 1 ? "💍" : item.emoji}</span>` +
+        `<span class="timeline-icon">${iconSvg}</span>` +
         `<span class="timeline-text">` +
         `<span class="timeline-label">${item.label}</span>` +
         `<span class="timeline-status">${statusText}</span>` +
