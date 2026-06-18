@@ -145,9 +145,10 @@
       if (isCorrect) this._showPieceToast(this.pieces);
 
       // 다음 버튼
-      const nextWrap = document.createElement("div");
-      nextWrap.className = "quiz-next";
       const isLast = this.current === this.data.length - 1;
+      const nextWrap = document.createElement("div");
+      // 마지막 문제의 '추억 완성하기'는 완성 CTA라 가운데 정렬한다
+      nextWrap.className = isLast ? "quiz-next quiz-next--final" : "quiz-next";
       const nextBtn = document.createElement("button");
       nextBtn.type = "button";
       nextBtn.className = "btn btn-primary";

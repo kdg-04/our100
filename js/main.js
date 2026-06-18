@@ -237,10 +237,10 @@
   let currentScreen = "hero";
 
   /** 떠다니는 이모지를 띄우지 않을 '차분한' 화면
-   *  편지 본문(letter)과 그 직전 봉투/편지 준비 화면(unlock)은
-   *  몰입을 위해 파티클을 숨긴다. */
+   *  편지 본문(letter)만 몰입을 위해 파티클을 숨긴다.
+   *  봉투/편지 준비 화면(unlock)에서는 파티클이 살포시 내려와 분위기를 더한다. */
   function isQuietScreen(name) {
-    return name === "letter" || name === "unlock";
+    return name === "letter";
   }
 
   let leaveTimer = null;
@@ -400,23 +400,34 @@
      첫 화면 렌더를 방해하지 않도록 브라우저가 한가할 때 조용히 시작한다.
      실패해도 무시 — 실제 표시 시점에 기존 대체 박스 로직이 처리한다.
      ===================================================================== */
-  function preloadImages() {
+  // 퍼즐 완성 사진(final.jpg)은 퀴즈를 다 풀면 곧바로 '한 장'으로 합쳐지며
+  // 공개되는 핵심 이미지라, 들어오는 순간 끊김 없이 보이도록 가장 먼저·우선해
+  // 받아두고 디코드까지 끝내 둔다. (다른 모달 사진들은 한가할 때 조용히)
+  function preloadImage(src, eager) {
+    const img = new Image();
+    img.decoding = "async";
+    if (eager && "fetchPriority" in img) img.fetchPriority = "high";
+    img.src = src;
+    // 디코드를 미리 끝내두면 표시 시점의 깜빡임/지연을 줄일 수 있다 (실패 무시)
+    if (eager && img.decode) img.decode().catch(() => {});
+    return img;
+  }
+
+  // 완성 사진은 즉시(우선) 프리로드 — 퀴즈 푸는 동안 캐시에 준비됨
+  preloadImage(APP_DATA.finalImage, true);
+
+  function preloadMemoryImages() {
     const base = APP_DATA.imageBase;
-    const urls = [APP_DATA.finalImage];
+    const urls = [];
     Object.values(APP_DATA.memories).forEach((mem) => {
       (mem.photos || []).forEach((file) => urls.push(base + file));
     });
-    // 중복 제거 후 백그라운드 로드 (브라우저 캐시에 올려두기만 하면 됨)
-    Array.from(new Set(urls)).forEach((src) => {
-      const img = new Image();
-      img.decoding = "async";
-      img.src = src;
-    });
+    Array.from(new Set(urls)).forEach((src) => preloadImage(src, false));
   }
   if ("requestIdleCallback" in window) {
-    requestIdleCallback(preloadImages, { timeout: 3000 });
+    requestIdleCallback(preloadMemoryImages, { timeout: 3000 });
   } else {
-    setTimeout(preloadImages, 1200);
+    setTimeout(preloadMemoryImages, 1200);
   }
 
   /* =====================================================================
@@ -512,12 +523,13 @@
       if (done) done();
       return;
     }
-    const dur = 1600;
+    const dur = 10000; // 약 10초에 걸쳐 1 → 100
     const t0 = performance.now();
     (function frame(now) {
       const t = Math.min((now - t0) / dur, 1);
-      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
-      refs.ddayValue.textContent = `D+${Math.round(eased * target)}`;
+      // easeInOutCubic — 천천히 시작해 부드럽게 끝까지 차오른다
+      const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      refs.ddayValue.textContent = `D+${Math.round(1 + eased * (target - 1))}`;
       if (t < 1) requestAnimationFrame(frame);
       else if (done) done();
     })(t0);
@@ -526,18 +538,246 @@
   /** 풍성한 축하 폭죽 — 더 크고 많은 별/하트가 쏟아져 내린다 */
   function celebrationBurst() {
     const reduce = prefersReduce();
-    const rounds = reduce ? 1 : 3;
-    const per = reduce ? 14 : 28;
+    const rounds = reduce ? 1 : 4;
+    const per = reduce ? 14 : 30;
     for (let r = 0; r < rounds; r++) {
       for (let i = 0; i < per; i++) {
-        setTimeout(() => spawnParticle({ minSize: 16, sizeRange: 22 }), r * 650 + i * 40);
+        setTimeout(() => spawnParticle({ minSize: 16, sizeRange: 22 }), r * 600 + i * 36);
       }
     }
   }
 
-  /** D+100 그날의 화려한 엔딩 — 카운트업 → 팡! → 축하 폭죽 */
+  /* ---- 밤하늘 불꽃놀이 (D+100 전용) ----
+     엔딩 별빛 캔버스 위에 전용 캔버스를 얹어, 폭죽이 솟아올라 터지는 연출을 그린다.
+     가산 합성(lighter)이라 불티가 겹칠수록 더 환하게 빛난다.
+     모션 최소화(prefers-reduced-motion) 사용자에겐 호출하지 않는다(celebrateHundred에서 분기). */
+  // 보라·핑크 위주의 형형색색 — 한 발마다 한 가지 색 계열로 터진다(메인 + 밝은 강조)
+  const FW_PALETTES = [
+    ["#c79bff", "#efe0ff", "#fff7e0"], // 라일락 퍼플
+    ["#b478ff", "#e6d2ff", "#fff7e0"], // 퍼플
+    ["#e08bff", "#f3ddff", "#fff7e0"], // 핑크빛 퍼플
+    ["#ff7ec4", "#ffd9ee", "#fff7e0"], // 마젠타 핑크
+    ["#ff9ed2", "#ffe0f0", "#fff7e0"], // 연핑크
+    ["#ff6fae", "#ffd0e6", "#fff7e0"], // 진한 핑크
+  ];
+  let fireworksRAF = null;
+
+  function launchFireworks(durationMs) {
+    const host = screens.ending;
+    if (!host) return;
+    let canvas = host.querySelector(".ending-fx");
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      canvas.className = "ending-fx";
+      canvas.setAttribute("aria-hidden", "true");
+      host.appendChild(canvas); // z-index로 별 캔버스 위·콘텐츠 아래에 놓임
+    }
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = host.clientWidth || window.innerWidth;
+    const h = host.clientHeight || window.innerHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const sparks = [];
+    const rockets = [];
+
+    // 한 발이 터지며 불티가 퍼진다 — 예쁜 모양(heart/star/peony/willow)으로만
+    function explode(x, y, palette, type) {
+      const pick = () => (Math.random() < 0.72 ? palette[0] : palette[(Math.random() * palette.length) | 0]);
+      const add = (vx, vy, o) => {
+        sparks.push(Object.assign(
+          { x, y, px: x, py: y, vx, vy, life: 1, decay: 0.011, color: pick(), size: 1.7, grav: 0.045, drag: 0.985, seed: Math.random() * 6.283 },
+          o
+        ));
+      };
+
+      if (type === "heart") {
+        // 하트 — 외곽선 + 안쪽을 채워 도톰하게 빛나는 하트 ❤️ (층마다 속도가 달라 채워진 채 퍼진다)
+        const base = (2.7 + Math.random() * 0.5) / 16;
+        [[1, 42], [0.66, 26], [0.34, 14]].forEach(([f, n]) => {
+          for (let i = 0; i < n; i++) {
+            const t = (Math.PI * 2 * i) / n + Math.random() * 0.05;
+            const hx = 16 * Math.pow(Math.sin(t), 3);
+            const hy = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+            add(hx * base * f, -hy * base * f, { decay: 0.0085, grav: 0.024, size: 1.7 });
+          }
+        });
+      } else if (type === "star") {
+        // 5각 별 — 외곽선 + 안쪽을 채워 또렷하게 빛나는 별 ⭐
+        const spikes = 5;
+        const mkVerts = (outer, inner) => {
+          const v = [];
+          for (let k = 0; k < spikes * 2; k++) {
+            const ang = (Math.PI * k) / spikes - Math.PI / 2;
+            const rad = k % 2 === 0 ? outer : inner;
+            v.push([Math.cos(ang) * rad, Math.sin(ang) * rad]);
+          }
+          return v;
+        };
+        [[3, 1.25, 6], [1.95, 0.82, 4]].forEach(([o, inr, perEdge]) => {
+          const verts = mkVerts(o, inr);
+          for (let k = 0; k < verts.length; k++) {
+            const a = verts[k], b = verts[(k + 1) % verts.length];
+            for (let j = 0; j < perEdge; j++) {
+              const t = j / perEdge;
+              add(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, { decay: 0.0085, grav: 0.022, size: 1.7 });
+            }
+          }
+        });
+      } else if (type === "palm") {
+        // 야자수(분수)형 — 굵은 불티 몇 가닥이 위로 솟았다 우아하게 늘어진다
+        const n = 12, sp = 2.6 + Math.random() * 0.5;
+        for (let i = 0; i < n; i++) {
+          const a = -Math.PI / 2 + (i / (n - 1) - 0.5) * Math.PI * 1.15; // 위쪽 부채꼴
+          const s = sp * (0.8 + Math.random() * 0.35);
+          add(Math.cos(a) * s, Math.sin(a) * s, { decay: 0.0065, grav: 0.075, drag: 0.992, size: 2.5 });
+        }
+      } else if (type === "willow") {
+        // 길게 늘어져 흘러내리는 수양버들형
+        const n = 36, sp = 1.7 + Math.random() * 0.7;
+        for (let i = 0; i < n; i++) {
+          const a = (Math.PI * 2 * i) / n + Math.random() * 0.12;
+          const s = sp * (0.6 + Math.random() * 0.6);
+          add(Math.cos(a) * s, Math.sin(a) * s, { decay: 0.006, grav: 0.075, drag: 0.99, size: 2 });
+        }
+      } else {
+        // peony — 둥근 폭발
+        const count = 48 + ((Math.random() * 18) | 0), power = 2.2 + Math.random() * 1.6;
+        for (let i = 0; i < count; i++) {
+          const a = (Math.PI * 2 * i) / count + Math.random() * 0.25;
+          const s = power * (0.45 + Math.random() * 0.85);
+          add(Math.cos(a) * s, Math.sin(a) * s, { decay: 0.010 + Math.random() * 0.012, size: 1.5 + Math.random() * 1.5 });
+        }
+      }
+
+      // 터지는 순간의 환한 코어 섬광 (공통)
+      for (let i = 0; i < 12; i++) {
+        add((Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6, { decay: 0.05, color: "#fff7e0", size: 2.4, grav: 0.02 });
+      }
+    }
+
+    // 화면 아래에서 폭죽 한 발을 쏘아 올린다 — 정점이 목표 높이가 되도록 초기 속도를 계산
+    // 세계 불꽃축제처럼 둥근 폭발(peony) 위주 + 야자수·수양버들, 하트·별은 가끔 특별하게
+    const TYPES = ["peony", "palm", "willow", "peony", "peony", "palm", "peony", "willow", "peony", "heart", "peony", "star"];
+    function launchRocket() {
+      const x = w * (0.12 + Math.random() * 0.76);
+      const startY = h + 8;
+      // 0.08h(상단, '100일 축하해' 위) ~ 0.58h(중하단) 어디서나 터지도록 높이를 폭넓게
+      const targetY = h * (0.08 + Math.random() * 0.5);
+      const g = 0.12;
+      const v0 = Math.sqrt(2 * g * (startY - targetY)); // 정점(vy=0)이 targetY가 되는 속도
+      const palette = FW_PALETTES[(Math.random() * FW_PALETTES.length) | 0];
+      rockets.push({
+        x, y: startY, px: x, py: startY,
+        vy: -v0, g, targetY,
+        palette, color: palette[0],
+        type: TYPES[(Math.random() * TYPES.length) | 0],
+      });
+    }
+
+    function step() {
+      ctx.clearRect(0, 0, w, h);
+      ctx.globalCompositeOperation = "lighter";
+      ctx.lineCap = "round";
+
+      // 로켓 상승 (정점에 닿으면 터진다 → 목표 높이에서 정확히 폭발)
+      for (let i = rockets.length - 1; i >= 0; i--) {
+        const r = rockets[i];
+        r.px = r.x; r.py = r.y;
+        r.y += r.vy;
+        r.vy += r.g;
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = r.color;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(r.px, r.py);
+        ctx.lineTo(r.x, r.y);
+        ctx.stroke();
+        if (r.vy >= 0 || r.y <= r.targetY) {
+          explode(r.x, r.y, r.palette, r.type);
+          rockets.splice(i, 1);
+        }
+      }
+
+      // 불티 확산 (불티마다 중력·공기저항이 달라 모양이 유지·변형된다)
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.px = s.x; s.py = s.y;
+        s.vy += s.grav;
+        s.vx *= s.drag; s.vy *= s.drag;
+        s.x += s.vx; s.y += s.vy;
+        s.life -= s.decay;
+        if (s.life <= 0) { sparks.splice(i, 1); continue; }
+        // 끝으로 갈수록 깜빡이며(반짝임) 잦아든다
+        const flick = 0.8 + 0.2 * Math.sin((1 - s.life) * 32 + s.seed);
+        const a = Math.max(s.life, 0) * flick;
+        // 부드러운 후광 — 겹칠수록 환하게 번진다 (lighter 합성)
+        ctx.globalAlpha = a * 0.26;
+        ctx.fillStyle = s.color;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size * 2.6, 0, Math.PI * 2);
+        ctx.fill();
+        // 빛나는 심 + 짧은 꼬리 (둥근 끝)
+        ctx.globalAlpha = a;
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = s.size * 1.15;
+        ctx.beginPath();
+        ctx.moveTo(s.px, s.py);
+        ctx.lineTo(s.x, s.y);
+        ctx.stroke();
+      }
+
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
+
+      if (currentScreen !== "ending") { stop(); return; }
+      if (performance.now() < endAt || sparks.length || rockets.length) {
+        fireworksRAF = requestAnimationFrame(step);
+      } else {
+        stop();
+      }
+    }
+
+    function stop() {
+      if (fireworksRAF) cancelAnimationFrame(fireworksRAF);
+      fireworksRAF = null;
+      ctx.clearRect(0, 0, w, h);
+    }
+
+    if (fireworksRAF) cancelAnimationFrame(fireworksRAF); // 진행 중이면 정리
+
+    const endAt = performance.now() + (durationMs || 7000);
+    // 발사 스케줄 — 오프닝 일제 발사로 단번에 띄우고, 이후 촘촘하게 연속으로
+    launchRocket();
+    setTimeout(launchRocket, 280);
+    const launcher = setInterval(() => {
+      if (performance.now() >= endAt || currentScreen !== "ending") {
+        clearInterval(launcher);
+        return;
+      }
+      launchRocket();
+      if (Math.random() < 0.4) setTimeout(launchRocket, 170); // 가끔만 두 발 — 여유 있는 리듬
+    }, 680);
+
+    fireworksRAF = requestAnimationFrame(step);
+  }
+
+  /** 카운트업이 100에 닿는 순간, 카운터 한가운데서 빛이 퍼지는 섬광 */
+  function flashBurst() {
+    const counter = screens.ending.querySelector(".ending-counter");
+    if (!counter) return;
+    const flash = document.createElement("span");
+    flash.className = "ending-flash";
+    counter.appendChild(flash);
+    setTimeout(() => flash.remove(), 900);
+  }
+
+  /** D+100 그날의 화려한 엔딩 — 불꽃놀이 + 카운트업 → 팡! 섬광 → 별·하트 폭죽 */
   function celebrateHundred() {
     const counter = screens.ending.querySelector(".ending-counter");
+    const reduce = prefersReduce();
     screens.ending.classList.add("is-celebrate");
 
     // 축하 배지 (중복 삽입 방지)
@@ -548,11 +788,14 @@
       counter.insertBefore(badge, counter.firstChild);
     }
 
+    if (!reduce) launchFireworks(10000); // 카운트 10초 동안 밤하늘 불꽃놀이
+
     countUpDday(100, () => {
       refs.ddayValue.classList.remove("pop");
       void refs.ddayValue.offsetWidth; // 애니메이션 재시작용 reflow
-      refs.ddayValue.classList.add("pop");
-      celebrationBurst();
+      refs.ddayValue.classList.add("pop", "lit"); // 팡! + 이후 숫자 뒤 광채 유지
+      if (!reduce) flashBurst();        // 한가운데 섬광
+      celebrationBurst();               // 별·하트가 쏟아져 내림
     });
   }
 
@@ -611,15 +854,21 @@
       canvas.width = w * dpr;
       canvas.height = h * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // 면적에 비례한 별 개수
-      const count = Math.round((w * h) / 9000);
-      stars = Array.from({ length: count }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        r: Math.random() * 1.6 + 0.4,
-        a: Math.random(),
-        speed: Math.random() * 0.02 + 0.005,
-      }));
+      // 면적에 비례한 별 개수 — 위치·크기·밝기·반짝임 속도/위상 모두 랜덤
+      const count = Math.round((w * h) / 7000);
+      stars = Array.from({ length: count }, () => {
+        const bright = Math.random() < 0.12; // 일부는 더 크고 밝게 반짝이는 별
+        return {
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: bright ? 1.4 + Math.random() * 1.3 : Math.random() * 1.2 + 0.3,
+          a: Math.random() * Math.PI * 2,       // 반짝임 시작 위상 랜덤
+          speed: Math.random() * 0.035 + 0.006, // 반짝임 속도 랜덤
+          amp: 0.4 + Math.random() * 0.6,       // 반짝임 깊이 랜덤
+          base: 0.12 + Math.random() * 0.33,    // 기본 밝기 랜덤
+          bright,
+        };
+      });
       canvas._size = { w, h };
     }
 
@@ -628,15 +877,27 @@
       ctx.clearRect(0, 0, w, h);
       stars.forEach((s) => {
         s.a += s.speed;
-        const alpha = 0.35 + Math.abs(Math.sin(s.a)) * 0.6;
+        const tw = Math.abs(Math.sin(s.a)); // 0~1 반짝임
+        const alpha = Math.min(s.base + tw * s.amp, 1);
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
         ctx.fillStyle = dark
           ? `rgba(255, 245, 210, ${alpha})`
           : `rgba(201, 162, 75, ${alpha * 0.55})`;
-        ctx.shadowBlur = dark ? 6 : 3;
-        ctx.shadowColor = dark ? "rgba(255,240,200,0.8)" : "rgba(201,162,75,0.5)";
+        ctx.shadowBlur = dark ? (s.bright ? 10 : 6) : 3;
+        ctx.shadowColor = dark ? "rgba(255,240,200,0.85)" : "rgba(201,162,75,0.5)";
         ctx.fill();
+        // 밝은 별이 반짝임 정점에 닿으면 십자 광채 — 진짜 별이 반짝이는 느낌
+        if (dark && s.bright && tw > 0.78) {
+          const g = s.r * (1.8 + tw * 1.8);
+          ctx.strokeStyle = `rgba(255, 248, 224, ${(tw - 0.78) * 3 * 0.6})`;
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(s.x - g, s.y); ctx.lineTo(s.x + g, s.y);
+          ctx.moveTo(s.x, s.y - g); ctx.lineTo(s.x, s.y + g);
+          ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
       });
       raf = requestAnimationFrame(draw);
     }

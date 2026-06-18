@@ -707,6 +707,11 @@ img {
   justify-content: flex-end;
 }
 
+/* 마지막 문제의 '추억 완성하기' 완성 CTA는 가운데 정렬 */
+.quiz-next--final {
+  justify-content: center;
+}
+
 /* 퀴즈 옆/아래 미니 퍼즐 진행 보드 */
 .quiz-puzzle {
   margin-top: 26px;
@@ -752,7 +757,7 @@ img {
   opacity: 0;
   pointer-events: none;
   z-index: 5;
-  transition: opacity 0.8s var(--ease);
+  transition: opacity 0.45s var(--ease);
 }
 
 .puzzle-board--full.show-photo .puzzle-final-overlay {
@@ -1446,16 +1451,47 @@ img {
   color: #f4ecd8;
 }
 
+/* 불꽃놀이 캔버스 — 별 캔버스(z:0) 위, 콘텐츠(z:2) 아래 */
+.ending-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .ending-inner {
   z-index: 2;
   gap: 24px;
 }
 
 .ending-counter {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
+}
+
+/* 카운트업이 100에 닿는 순간, 한가운데서 퍼지는 빛 */
+.ending-flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(circle, rgba(255, 247, 224, 0.95) 0%, rgba(244, 201, 93, 0.55) 35%, rgba(244, 201, 93, 0) 70%);
+  animation: endingFlash 0.85s ease-out forwards;
+}
+
+@keyframes endingFlash {
+  0% { opacity: 0.95; transform: scale(0.4); }
+  100% { opacity: 0; transform: scale(28); }
 }
 
 .ending-counter-label {
@@ -1465,6 +1501,7 @@ img {
 }
 
 .ending-counter-value {
+  position: relative;
   font-family: var(--font-serif);
   font-weight: 800;
   font-size: clamp(3rem, 16vw, 5.5rem);
@@ -1474,6 +1511,34 @@ img {
   color: transparent;
   text-shadow: 0 0 30px rgba(244, 201, 93, 0.3);
   line-height: 1;
+}
+
+/* D+100 숫자 뒤로 번지는 광채 (카운트 완료 후 .lit 로 켜짐) */
+.ending-counter-value::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 215%;
+  height: 290%;
+  transform: translate(-50%, -50%) scale(0.85);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255, 242, 212, 0.30) 0%, rgba(246, 214, 140, 0.15) 40%, rgba(246, 214, 140, 0) 72%);
+  filter: blur(9px);
+  opacity: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 카운트 완료 후, 숫자 뒤로 은은히 번지는 샴페인빛 헤일로 (차분하게 호흡) */
+.ending-counter-value.lit::before {
+  opacity: 1;
+  animation: ddayAura 4.5s ease-in-out infinite;
+}
+
+@keyframes ddayAura {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.4; }
+  50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.62; }
 }
 
 .ending-counter-date {
@@ -1522,7 +1587,7 @@ img {
   background-size: 250% 100%;
   -webkit-background-clip: text;
   background-clip: text;
-  text-shadow: 0 0 42px rgba(244, 201, 93, 0.65);
+  text-shadow: 0 0 30px rgba(255, 226, 158, 0.45);
   animation: goldShine 3s linear infinite;
 }
 
@@ -1538,8 +1603,9 @@ img {
 
 @keyframes ddayPop {
   0% { transform: scale(1); }
-  40% { transform: scale(1.18); }
-  70% { transform: scale(0.97); }
+  35% { transform: scale(1.26); }
+  60% { transform: scale(0.95); }
+  80% { transform: scale(1.06); }
   100% { transform: scale(1); }
 }
 
@@ -1547,6 +1613,8 @@ img {
   .ending-badge { animation: none; }
   .is-celebrate .ending-counter-value,
   .ending-counter-value.pop { animation: none; }
+  .ending-flash { display: none; }
+  .ending-counter-value.lit::before { animation: none; opacity: 0.8; }
 }
 
 #ending .btn-ghost {

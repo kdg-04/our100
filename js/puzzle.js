@@ -51,6 +51,9 @@
     _addFinalOverlay(board) {
       const overlay = document.createElement("img");
       overlay.className = "puzzle-final-overlay";
+      // 페이드인 순간 끊김이 없도록 미리 받아 디코드까지 끝내 둔다
+      overlay.decoding = "async";
+      if ("fetchPriority" in overlay) overlay.fetchPriority = "high";
       overlay.src = this.finalUrl;
       overlay.alt = "완성된 추억 사진";
       board.appendChild(overlay);
@@ -154,7 +157,7 @@
           const piece = this.fullPieces[i];
           if (piece && !piece.classList.contains("is-revealed")) {
             setTimeout(() => piece.classList.add("is-revealed", "just-won"), delay);
-            delay += 160;
+            delay += 80; // 남은 조각이 있을 때만 — 빠르게 연달아 뒤집힘
           }
         }
         this.revealed = 9;
@@ -165,10 +168,10 @@
             board.classList.add("is-complete");
             setTimeout(() => board.classList.remove("is-complete"), 1700);
             // 합쳐진 직후, 미세 이음새를 가리는 완성 사진을 부드럽게 페이드인
-            setTimeout(() => board.classList.add("show-photo"), 450);
+            setTimeout(() => board.classList.add("show-photo"), 220);
           }
           resolve();
-        }, delay + 300);
+        }, delay + 160);
       });
     },
   };
